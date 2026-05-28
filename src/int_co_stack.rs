@@ -1,0 +1,323 @@
+use std::sync::Arc;
+
+use int_interval::traits::IntCO;
+
+const BATCH_SIZE: usize = 128;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChangePoint<C> {
+    pub at: C,
+    pub height_after: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IntCOStack<I>
+where
+    I: IntCO,
+{
+    points: Arc<[ChangePoint<I::CoordType>]>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EndpointKind {
+    Enter,
+    Leave,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Endpoint<C> {
+    at: C,
+    kind: EndpointKind,
+}
+
+impl<I> Default for IntCOStack<I>
+where
+    I: IntCO,
+{
+    #[inline]
+    fn default() -> Self {
+        Self {
+            points: Arc::from([]),
+        }
+    }
+}
+
+impl<I> FromIterator<I> for IntCOStack<I>
+where
+    I: IntCO,
+{
+    #[inline]
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = I>,
+    {
+        let mut iter = iter.into_iter();
+        let mut levels: Vec<Option<Vec<ChangePoint<I::CoordType>>>> = Vec::new();
+
+        loop {
+            let mut endpoints = Vec::with_capacity(BATCH_SIZE.saturating_mul(2));
+
+            for _ in 0..BATCH_SIZE {
+                let Some(interval) = iter.next() else {
+                    break;
+                };
+
+                endpoints.push(Endpoint {
+                    at: interval.start(),
+                    kind: EndpointKind::Enter,
+                });
+                endpoints.push(Endpoint {
+                    at: interval.end_excl(),
+                    kind: EndpointKind::Leave,
+                });
+            }
+
+            if endpoints.is_empty() {
+                break;
+            }
+
+            let mut carry = build_points_from_endpoints(endpoints);
+            let mut level = 0usize;
+
+            loop {
+                if level == levels.len() {
+                    levels.push(Some(carry));
+                    break;
+                }
+
+                match levels[level].take() {
+                    None => {
+                        levels[level] = Some(carry);
+                        break;
+                    }
+                    Some(points) => {
+                        carry = merge_points(&points, &carry);
+                        level += 1;
+                    }
+                }
+            }
+        }
+
+        let points = levels
+            .into_iter()
+            .flatten()
+            .reduce(|lhs, rhs| merge_points(&lhs, &rhs))
+            .unwrap_or_default();
+
+        Self {
+            points: points.into(),
+        }
+    }
+}
+
+/// Builds a canonical stack-height function from raw interval endpoint events.
+///
+/// Each half-open interval contributes two endpoint events:
+///
+/// ```text
+/// [start, end) -> Enter at start, Leave at end
+/// ```
+///
+/// Events at the same coordinate are applied together because a half-open
+/// boundary may contain both intervals ending and intervals starting. Only
+/// the resulting net height matters for the canonical representation.
+///
+/// The returned change points describe a piecewise-constant height function:
+/// after each `at`, the active interval count becomes `height_after`.
+///
+/// # Input assumptions
+///
+/// The endpoint events must originate from valid finite half-open intervals.
+/// Consequently:
+///
+/// - the accumulated height never becomes negative;
+/// - after all events are consumed, the accumulated height returns to zero.
+///
+/// # Canonical output
+///
+/// The returned points satisfy:
+///
+/// - coordinates are strictly increasing;
+/// - adjacent points always have different `height_after` values;
+/// - redundant coordinates whose events cause no net height change are omitted.
+///
+/// # Complexity
+///
+/// Sorting dominates the computation: `O(n log n)` time for `n` endpoints.
+/// The output allocates at most `n` change points.
+fn build_points_from_endpoints<C>(mut endpoints: Vec<Endpoint<C>>) -> Vec<ChangePoint<C>>
+where
+    C: Copy + Ord,
+{
+    // Ordered endpoints allow all events at the same coordinate to be
+    // consumed together and emitted as at most one canonical change point.
+    endpoints.sort_unstable_by_key(|endpoint| endpoint.at);
+
+    let mut points = Vec::with_capacity(endpoints.len());
+
+    // Height of the piecewise-constant function immediately before the next
+    // unprocessed coordinate. The height before the first endpoint is zero.
+    let mut height_after = 0usize;
+    let mut cursor = 0usize;
+
+    while cursor < endpoints.len() {
+        let at = endpoints[cursor].at;
+        let mut enters = 0usize;
+        let mut leaves = 0usize;
+
+        // Apply every boundary event at `at` atomically. For half-open
+        // intervals, intervals leaving at `at` are already inactive there,
+        // while intervals entering at `at` are active from there onward.
+        while cursor < endpoints.len() && endpoints[cursor].at == at {
+            match endpoints[cursor].kind {
+                EndpointKind::Enter => enters += 1,
+                EndpointKind::Leave => leaves += 1,
+            }
+            cursor += 1;
+        }
+
+        // Compute the height on the segment beginning at `at`. The split
+        // between addition and subtraction keeps the stored height unsigned
+        // while still detecting malformed events that would go below zero.
+        let next_height = if enters >= leaves {
+            height_after.checked_add(enters - leaves)
+        } else {
+            height_after.checked_sub(leaves - enters)
+        }
+        .expect("valid intervals must never produce a negative stack height");
+
+        // Emit only real changes of the height function. Equal numbers of
+        // entering and leaving layers at the same coordinate cancel out and
+        // must not create a redundant canonical boundary.
+        if next_height != height_after {
+            points.push(ChangePoint {
+                at,
+                height_after: next_height,
+            });
+        }
+
+        height_after = next_height;
+    }
+
+    // Every finite half-open interval contributes one enter and one leave, so
+    // a complete valid event stream must end outside all intervals.
+    debug_assert_eq!(
+        height_after, 0,
+        "all finite half-open intervals must eventually close"
+    );
+
+    points
+}
+
+/// Merges two canonical change-point sequences by adding their stack heights.
+///
+/// Each input slice represents a piecewise-constant stack-height function:
+/// after a change point at `at`, the function takes the value
+/// `height_after` until the next change point.
+///
+/// The merged sequence represents the pointwise sum of the two functions:
+///
+/// ```text
+/// merged_height(x) = lhs_height(x) + rhs_height(x)
+/// ```
+///
+/// Change points that would not change the merged height are omitted. This
+/// preserves the canonical representation, including cases where a boundary
+/// in one input is exactly cancelled by a boundary in the other input.
+///
+/// # Input invariants
+///
+/// Both input slices must be canonical:
+///
+/// - change points are ordered by strictly increasing coordinates;
+/// - adjacent change points have different `height_after` values;
+/// - the height before the first change point is zero;
+/// - the final change point, when present, restores the height to zero.
+///
+/// # Panics
+///
+/// Panics if the sum of the two active heights exceeds [`usize::MAX`].
+///
+/// # Complexity
+///
+/// Runs in `O(lhs.len() + rhs.len())` time and allocates at most
+/// `lhs.len() + rhs.len()` output change points.
+fn merge_points<C>(lhs: &[ChangePoint<C>], rhs: &[ChangePoint<C>]) -> Vec<ChangePoint<C>>
+where
+    C: Copy + Ord,
+{
+    let mut out = Vec::with_capacity(lhs.len() + rhs.len());
+    let mut lhs_height = 0usize;
+    let mut rhs_height = 0usize;
+    let mut merged_height = 0usize;
+    let mut lhs_cursor = 0usize;
+    let mut rhs_cursor = 0usize;
+
+    while lhs_cursor < lhs.len() || rhs_cursor < rhs.len() {
+        let at = match (lhs.get(lhs_cursor), rhs.get(rhs_cursor)) {
+            // Only `lhs` changes at this coordinate; keep the current
+            // height contributed by `rhs`.
+            (Some(l), Some(r)) if l.at < r.at => {
+                lhs_height = l.height_after;
+                lhs_cursor += 1;
+                l.at
+            }
+
+            // Only `rhs` changes at this coordinate; keep the current
+            // height contributed by `lhs`.
+            (Some(l), Some(r)) if r.at < l.at => {
+                rhs_height = r.height_after;
+                rhs_cursor += 1;
+                r.at
+            }
+
+            // Both functions change at the same coordinate. Apply both
+            // changes before computing the merged height after `at`.
+            (Some(l), Some(r)) => {
+                lhs_height = l.height_after;
+                rhs_height = r.height_after;
+                lhs_cursor += 1;
+                rhs_cursor += 1;
+                l.at
+            }
+
+            // `rhs` has been exhausted; append the remaining changes from
+            // `lhs` while preserving the final height contributed by `rhs`.
+            (Some(l), None) => {
+                lhs_height = l.height_after;
+                lhs_cursor += 1;
+                l.at
+            }
+
+            // `lhs` has been exhausted; append the remaining changes from
+            // `rhs` while preserving the final height contributed by `lhs`.
+            (None, Some(r)) => {
+                rhs_height = r.height_after;
+                rhs_cursor += 1;
+                r.at
+            }
+
+            // The loop condition guarantees that at least one input still
+            // contains an unprocessed change point.
+            (None, None) => unreachable!(),
+        };
+
+        let next_merged_height = lhs_height
+            .checked_add(rhs_height)
+            .expect("stack height overflow");
+
+        // A coordinate belongs to the canonical output exactly when the
+        // pointwise sum changes its value at that coordinate.
+        if next_merged_height != merged_height {
+            out.push(ChangePoint {
+                at,
+                height_after: next_merged_height,
+            });
+            merged_height = next_merged_height;
+        }
+    }
+
+    debug_assert_eq!(merged_height, 0);
+
+    out
+}
