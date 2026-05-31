@@ -127,6 +127,9 @@ where
     points
 }
 
+#[cfg(test)]
+mod tests_for_build_points_from_endpoints;
+
 /// Merges two canonical change-point sequences by adding their stack heights.
 ///
 /// Each input slice represents a piecewise-constant stack-height function:
@@ -239,6 +242,9 @@ where
 
     out
 }
+
+#[cfg(test)]
+mod tests_for_merge_points;
 
 #[derive(Debug)]
 struct StackBuildAcc<C>
@@ -355,6 +361,9 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests_for_stack_build_acc;
+
 impl<I> FromIterator<I> for IntCOStack<I>
 where
     I: IntCO,
@@ -405,3 +414,5 @@ where
         }
     }
 }
+#[cfg(test)]
+mod tests_for_from_iter_and_from_par_iter;
