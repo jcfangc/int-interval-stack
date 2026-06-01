@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "int-interval"
-version = "0.9.2"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1f1bf049fd2399ff7436d3d0585398537646ad89e373c52a09d7098d57a0c9"
+checksum = "08db9399b8c2ea7c64cfe7cb73871f6d206eb3bdb4034d870afe753b3847ae7e"
 
 [[package]]
 name = "int-interval-stack"

@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   benchmark-pages:
-    uses: jcfangc/ci/.github/workflows/rust-benchmark-pages.yml@v0.2.1
+    uses: jcfangc/ci/.github/workflows/rust-benchmark-pages.yml@v0
     with:
       bench_profile: report
       rust_toolchain: stable
