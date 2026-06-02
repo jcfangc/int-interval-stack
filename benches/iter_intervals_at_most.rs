@@ -37,7 +37,7 @@ fn bench_iter_intervals_at_most(c: &mut Criterion) {
                     b.iter(|| {
                         let mut acc = 0i64;
 
-                        for (iv, h) in stack.iter_intervals_at_most(black_box(max)) {
+                        for (iv, h) in stack.iter_height_segments_at_most(black_box(max)) {
                             acc ^= (iv.start() as i64) << 1;
                             acc ^= (iv.end_excl() as i64) << 2;
                             acc ^= h as i64;

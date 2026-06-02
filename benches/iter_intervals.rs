@@ -10,7 +10,7 @@ fn bench_iter_intervals(c: &mut Criterion) {
     for &n in support::profile().sizes() {
         for (case, bounds) in cases(n) {
             let stack = stack_from_bounds(&bounds);
-            let out_len = stack.iter_intervals().count().max(1);
+            let out_len = stack.iter_height_segments().count().max(1);
 
             group.throughput(Throughput::Elements(out_len as u64));
 
@@ -20,7 +20,7 @@ fn bench_iter_intervals(c: &mut Criterion) {
                     b.iter(|| {
                         let mut acc = 0i64;
 
-                        for (iv, h) in stack.iter_intervals() {
+                        for (iv, h) in stack.iter_height_segments() {
                             acc ^= (iv.start() as i64) << 1;
                             acc ^= (iv.end_excl() as i64) << 2;
                             acc ^= h as i64;

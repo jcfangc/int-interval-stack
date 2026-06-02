@@ -50,7 +50,7 @@ fn bench_iter_intervals_between(c: &mut Criterion) {
 
                         let mut acc = 0i64;
 
-                        for (iv, h) in stack.iter_intervals_between(min_height, max_height) {
+                        for (iv, h) in stack.iter_height_segments_between(min_height, max_height) {
                             acc ^= (iv.start() as i64) << 1;
                             acc ^= (iv.end_excl() as i64) << 2;
                             acc ^= h as i64;

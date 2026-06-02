@@ -11,31 +11,8 @@ pub(crate) fn cp(at: i32, height_after: usize) -> ChangePoint<i32> {
     ChangePoint { at, height_after }
 }
 
-pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO> {
-    intervals.iter().copied().map(|(s, e)| iv(s, e)).collect()
-}
-
 pub(crate) fn naive_height_at(intervals: &[(i32, i32)], x: i32) -> usize {
     intervals.iter().filter(|&&(s, e)| s <= x && x < e).count()
-}
-
-pub(crate) fn oracle_points(intervals: &[(i32, i32)]) -> Vec<ChangePoint<i32>> {
-    let ats: BTreeSet<i32> = intervals.iter().flat_map(|&(s, e)| [s, e]).collect();
-    let mut prev = 0usize;
-    let mut out = Vec::new();
-
-    for at in ats {
-        let next = naive_height_at(intervals, at);
-        if next != prev {
-            out.push(ChangePoint {
-                at,
-                height_after: next,
-            });
-            prev = next;
-        }
-    }
-
-    out
 }
 
 pub(crate) fn oracle_segments(intervals: &[(i32, i32)]) -> Vec<((i32, i32), usize)> {
@@ -92,14 +69,4 @@ pub(crate) fn intervals_strategy(
     range: std::ops::Range<usize>,
 ) -> impl Strategy<Value = Vec<(i32, i32)>> {
     prop::collection::vec(interval_strategy(), range)
-}
-
-pub(crate) fn height_stats_from_points<C>(points: &[ChangePoint<C>]) -> StackHeightStats {
-    let mut stats = StackHeightStats::default();
-
-    for point in points {
-        stats.observe(point.height_after);
-    }
-
-    stats
 }

@@ -13,7 +13,7 @@ fn bench_peak_intervals(c: &mut Criterion) {
         for (case, bounds) in cases(n) {
             let stack = stack_from_bounds(&bounds);
             let point_count = stack.change_points().len().max(1);
-            let peak_count = stack.peak_intervals().count();
+            let peak_count = stack.iter_peak_height_segments().count();
             let id = format!("{case}_{n}_peaks_{peak_count}");
 
             group.throughput(Throughput::Elements(point_count as u64));
@@ -22,7 +22,7 @@ fn bench_peak_intervals(c: &mut Criterion) {
                 b.iter(|| {
                     let mut acc = 0i64;
 
-                    for (iv, h) in stack.peak_intervals() {
+                    for (iv, h) in stack.iter_peak_height_segments() {
                         acc ^= (iv.start() as i64) << 1;
                         acc ^= (iv.end_excl() as i64) << 2;
                         acc ^= h as i64;

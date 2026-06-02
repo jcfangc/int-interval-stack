@@ -11,7 +11,8 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            points: Arc::from([]),
+            change_points: Arc::from([]),
+            covered: IntCOSet::default(),
             height_stats: StackHeightStats::default(),
         }
     }
@@ -384,7 +385,7 @@ where
 
 impl<I> FromIterator<I> for IntCOStack<I>
 where
-    I: IntCO,
+    I: IntCO + Copy,
 {
     #[inline]
     fn from_iter<T>(iter: T) -> Self
@@ -393,9 +394,10 @@ where
     {
         let mut acc = StackBuildAcc::new();
 
-        for interval in iter {
-            acc.push_interval(interval);
-        }
+        let covered = iter
+            .into_iter()
+            .inspect(|interval| acc.push_interval(*interval))
+            .collect::<IntCOSet<I>>();
 
         let StackParts {
             points,
@@ -403,42 +405,109 @@ where
         } = acc.finish();
 
         Self {
-            points: points.into(),
+            change_points: points.into(),
+            covered,
             height_stats,
         }
     }
 }
 
+/// Projects the covered interval set from canonical stack change points.
+///
+/// A stack change-point sequence describes a piecewise-constant height
+/// function. The covered set is exactly the union of all coordinate ranges
+/// whose height is positive.
+///
+/// This function scans positive-height runs:
+///
+/// ```text
+/// height: 0 -> positive    opens a covered interval
+/// height: positive -> 0    closes a covered interval
+/// positive -> positive     keeps the current covered interval open
+/// ```
+///
+/// # Input invariants
+///
+/// `points` must be the canonical output of stack construction:
+///
+/// - coordinates are strictly increasing;
+/// - adjacent points have different `height_after` values;
+/// - the final height, when non-empty, is zero.
+///
+/// # Output
+///
+/// The returned set is canonical. Positive-height runs are emitted in
+/// ascending order and are separated by zero-height gaps.
+#[inline]
+fn covered_from_change_points<I>(points: &[ChangePoint<I::CoordType>]) -> IntCOSet<I>
+where
+    I: IntCO,
+{
+    let mut out = Vec::new();
+    let mut start = None;
+
+    for p in points {
+        match (start, p.height_after) {
+            (None, h) if h > 0 => {
+                start = Some(p.at);
+            }
+            (Some(s), 0) => {
+                // SAFETY:
+                // Canonical change points are strictly increasing, and a
+                // positive-height run can only close at a later coordinate.
+                out.push(unsafe { I::new_unchecked(s, p.at) });
+                start = None;
+            }
+            _ => {}
+        }
+    }
+
+    debug_assert!(
+        start.is_none(),
+        "canonical stack change points must end at zero height"
+    );
+
+    // SAFETY:
+    // Positive-height runs are emitted in ascending order and are separated by
+    // zero-height gaps, so the result is canonical.
+    unsafe { IntCOSet::new_unchecked(out) }
+}
+
 impl<I> FromParallelIterator<I> for IntCOStack<I>
 where
-    I: IntCO + Send,
+    I: IntCO + Copy + Send,
 {
+    /// Builds a stack from intervals in parallel.
+    ///
+    /// Each worker accumulates endpoint-derived stack parts locally. The final
+    /// reduction merges those parts into one canonical height function.
+    ///
+    /// The covered set is then projected from the final change points instead
+    /// of being built from a second raw interval collection. This keeps the
+    /// stack and its covered view derived from the same canonical height
+    /// function and avoids retaining all input intervals during reduction.
     #[inline]
     fn from_par_iter<T>(par_iter: T) -> Self
     where
         T: IntoParallelIterator<Item = I>,
     {
-        let parts = par_iter
+        let StackParts {
+            points,
+            height_stats,
+        } = par_iter
             .into_par_iter()
-            // Each Rayon worker builds a local canonical stack from its own
-            // input shard. This keeps endpoint sorting and batch compaction
-            // embarrassingly parallel.
             .fold(StackBuildAcc::new, |mut acc, interval| {
                 acc.push_interval(interval);
                 acc
             })
-            // Finalize each local builder before global reduction.
             .map(StackBuildAcc::finish)
-            // Merge partial stack-height functions by pointwise addition.
             .reduce(StackParts::default, |lhs, rhs| merge_parts(&lhs, &rhs));
 
-        let StackParts {
-            points,
-            height_stats,
-        } = parts;
+        let covered = covered_from_change_points::<I>(&points);
 
         Self {
-            points: points.into(),
+            change_points: points.into(),
+            covered,
             height_stats,
         }
     }
@@ -458,3 +527,6 @@ mod tests_for_stack_build_acc;
 
 #[cfg(test)]
 mod tests_for_from_iter_and_from_par_iter;
+
+#[cfg(test)]
+mod tests_for_covered_from_change_points;
