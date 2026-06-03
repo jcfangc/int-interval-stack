@@ -1,6 +1,6 @@
 [package]
 name = "int-interval-stack"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Integer half-open interval stack structures for overlap multiplicity."
 license = "MIT OR Apache-2.0"
