@@ -1,6 +1,6 @@
 [package]
 name = "int-interval-stack"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Integer half-open interval stack structures for overlap multiplicity."
 license = "MIT OR Apache-2.0"
@@ -11,7 +11,9 @@ keywords = ["interval", "stack", "range", "integer", "algorithms"]
 categories = ["data-structures", "algorithms"]
 
 [dependencies]
-int-interval = "0.9.2"
+either = "1.16.0"
+int-interval = "0.9.4"
+int-interval-set = "0.3.4"
 rayon = "1.12.0"
 
 [dev-dependencies]
@@ -38,41 +40,25 @@ name = "height_at"
 harness = false
 
 [[bench]]
-name = "max_height"
+name = "iter_height_segments"
 harness = false
 
 [[bench]]
-name = "contains_point"
+name = "iter_height_segments_at_least"
 harness = false
 
 [[bench]]
-name = "intersects_interval"
+name = "iter_height_segments_at_most"
 harness = false
 
 [[bench]]
-name = "contains_interval"
+name = "iter_height_segments_exactly"
 harness = false
 
 [[bench]]
-name = "iter_intervals"
+name = "iter_height_segments_between"
 harness = false
 
 [[bench]]
-name = "iter_intervals_at_least"
-harness = false
-
-[[bench]]
-name = "iter_intervals_at_most"
-harness = false
-
-[[bench]]
-name = "iter_intervals_exactly"
-harness = false
-
-[[bench]]
-name = "iter_intervals_between"
-harness = false
-
-[[bench]]
-name = "peak_intervals"
+name = "iter_peak_height_segments"
 harness = false

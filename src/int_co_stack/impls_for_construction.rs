@@ -11,7 +11,9 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            points: Arc::from([]),
+            change_points: Arc::from([]),
+            covered: IntCOSet::default(),
+            height_stats: StackHeightStats::default(),
         }
     }
 }
@@ -26,6 +28,15 @@ enum EndpointKind {
 struct Endpoint<C> {
     at: C,
     kind: EndpointKind,
+}
+
+#[derive(Debug, Default)]
+struct StackParts<C>
+where
+    C: Default,
+{
+    points: Vec<ChangePoint<C>>,
+    height_stats: StackHeightStats,
 }
 
 /// Builds a canonical stack-height function from raw interval endpoint events.
@@ -63,15 +74,16 @@ struct Endpoint<C> {
 ///
 /// Sorting dominates the computation: `O(n log n)` time for `n` endpoints.
 /// The output allocates at most `n` change points.
-fn build_points_from_endpoints<C>(mut endpoints: Vec<Endpoint<C>>) -> Vec<ChangePoint<C>>
+fn build_parts_from_endpoints<C>(mut endpoints: Vec<Endpoint<C>>) -> StackParts<C>
 where
-    C: Copy + Ord,
+    C: Default + Copy + Ord,
 {
     // Ordered endpoints allow all events at the same coordinate to be
     // consumed together and emitted as at most one canonical change point.
     endpoints.sort_unstable_by_key(|endpoint| endpoint.at);
 
     let mut points = Vec::with_capacity(endpoints.len());
+    let mut height_stats = StackHeightStats::default();
 
     // Height of the piecewise-constant function immediately before the next
     // unprocessed coordinate. The height before the first endpoint is zero.
@@ -104,6 +116,8 @@ where
         }
         .expect("valid intervals must never produce a negative stack height");
 
+        height_stats.observe(next_height);
+
         // Emit only real changes of the height function. Equal numbers of
         // entering and leaving layers at the same coordinate cancel out and
         // must not create a redundant canonical boundary.
@@ -124,11 +138,11 @@ where
         "all finite half-open intervals must eventually close"
     );
 
-    points
+    StackParts {
+        points,
+        height_stats,
+    }
 }
-
-#[cfg(test)]
-mod tests_for_build_points_from_endpoints;
 
 /// Merges two canonical change-point sequences by adding their stack heights.
 ///
@@ -163,19 +177,25 @@ mod tests_for_build_points_from_endpoints;
 ///
 /// Runs in `O(lhs.len() + rhs.len())` time and allocates at most
 /// `lhs.len() + rhs.len()` output change points.
-fn merge_points<C>(lhs: &[ChangePoint<C>], rhs: &[ChangePoint<C>]) -> Vec<ChangePoint<C>>
+fn merge_parts<C>(lhs: &StackParts<C>, rhs: &StackParts<C>) -> StackParts<C>
 where
-    C: Copy + Ord,
+    C: Default + Copy + Ord,
 {
-    let mut out = Vec::with_capacity(lhs.len() + rhs.len());
+    let lhs_points_len = lhs.points.len();
+    let rhs_points_len = rhs.points.len();
+
+    let mut out_points = Vec::with_capacity(lhs_points_len + rhs_points_len);
+    let mut out_stats = StackHeightStats::default();
+
     let mut lhs_height = 0usize;
     let mut rhs_height = 0usize;
     let mut merged_height = 0usize;
+
     let mut lhs_cursor = 0usize;
     let mut rhs_cursor = 0usize;
 
-    while lhs_cursor < lhs.len() || rhs_cursor < rhs.len() {
-        let at = match (lhs.get(lhs_cursor), rhs.get(rhs_cursor)) {
+    while lhs_cursor < lhs_points_len || rhs_cursor < rhs_points_len {
+        let at = match (lhs.points.get(lhs_cursor), rhs.points.get(rhs_cursor)) {
             // Only `lhs` changes at this coordinate; keep the current
             // height contributed by `rhs`.
             (Some(l), Some(r)) if l.at < r.at => {
@@ -227,10 +247,12 @@ where
             .checked_add(rhs_height)
             .expect("stack height overflow");
 
+        out_stats.observe(next_merged_height);
+
         // A coordinate belongs to the canonical output exactly when the
         // pointwise sum changes its value at that coordinate.
         if next_merged_height != merged_height {
-            out.push(ChangePoint {
+            out_points.push(ChangePoint {
                 at,
                 height_after: next_merged_height,
             });
@@ -240,24 +262,24 @@ where
 
     debug_assert_eq!(merged_height, 0);
 
-    out
+    StackParts {
+        points: out_points,
+        height_stats: out_stats,
+    }
 }
-
-#[cfg(test)]
-mod tests_for_merge_points;
 
 #[derive(Debug)]
 struct StackBuildAcc<C>
 where
-    C: Copy + Ord,
+    C: Default + Copy + Ord,
 {
     endpoints: Vec<Endpoint<C>>,
-    levels: Vec<Option<Vec<ChangePoint<C>>>>,
+    levels: Vec<Option<StackParts<C>>>,
 }
 
 impl<C> StackBuildAcc<C>
 where
-    C: Copy + Ord,
+    C: Default + Copy + Ord,
 {
     #[inline]
     fn new() -> Self {
@@ -301,7 +323,7 @@ where
     }
 
     #[inline]
-    fn finish(mut self) -> Vec<ChangePoint<C>> {
+    fn finish(mut self) -> StackParts<C> {
         // Make sure the final partial batch is included.
         self.flush();
 
@@ -310,7 +332,7 @@ where
         self.levels
             .into_iter()
             .flatten()
-            .reduce(|lhs, rhs| merge_points(&lhs, &rhs))
+            .reduce(|lhs, rhs| merge_parts(&lhs, &rhs))
             .unwrap_or_default()
     }
 
@@ -330,10 +352,10 @@ where
 
         // Canonicalize this endpoint batch, then insert the resulting
         // stack-height function into the balanced level chain.
-        self.push_points(build_points_from_endpoints(endpoints));
+        self.push_points(build_parts_from_endpoints(endpoints));
     }
 
-    fn push_points(&mut self, mut carry: Vec<ChangePoint<C>>) {
+    fn push_points(&mut self, mut carry: StackParts<C>) {
         let mut level = 0usize;
 
         loop {
@@ -352,8 +374,8 @@ where
 
                 // Occupied level: merge two equal-rank canonical sequences and
                 // carry the combined result into the next level.
-                Some(points) => {
-                    carry = merge_points(&points, &carry);
+                Some(parts) => {
+                    carry = merge_parts(&parts, &carry);
                     level += 1;
                 }
             }
@@ -361,12 +383,9 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests_for_stack_build_acc;
-
 impl<I> FromIterator<I> for IntCOStack<I>
 where
-    I: IntCO,
+    I: IntCO + Copy,
 {
     #[inline]
     fn from_iter<T>(iter: T) -> Self
@@ -375,44 +394,139 @@ where
     {
         let mut acc = StackBuildAcc::new();
 
-        for interval in iter {
-            acc.push_interval(interval);
-        }
+        let covered = iter
+            .into_iter()
+            .inspect(|interval| acc.push_interval(*interval))
+            .collect::<IntCOSet<I>>();
+
+        let StackParts {
+            points,
+            height_stats,
+        } = acc.finish();
 
         Self {
-            points: acc.finish().into(),
+            change_points: points.into(),
+            covered,
+            height_stats,
         }
     }
 }
 
+/// Projects the covered interval set from canonical stack change points.
+///
+/// A stack change-point sequence describes a piecewise-constant height
+/// function. The covered set is exactly the union of all coordinate ranges
+/// whose height is positive.
+///
+/// This function scans positive-height runs:
+///
+/// ```text
+/// height: 0 -> positive    opens a covered interval
+/// height: positive -> 0    closes a covered interval
+/// positive -> positive     keeps the current covered interval open
+/// ```
+///
+/// # Input invariants
+///
+/// `points` must be the canonical output of stack construction:
+///
+/// - coordinates are strictly increasing;
+/// - adjacent points have different `height_after` values;
+/// - the final height, when non-empty, is zero.
+///
+/// # Output
+///
+/// The returned set is canonical. Positive-height runs are emitted in
+/// ascending order and are separated by zero-height gaps.
+#[inline]
+fn covered_from_change_points<I>(points: &[ChangePoint<I::CoordType>]) -> IntCOSet<I>
+where
+    I: IntCO,
+{
+    let mut out = Vec::new();
+    let mut start = None;
+
+    for p in points {
+        match (start, p.height_after) {
+            (None, h) if h > 0 => {
+                start = Some(p.at);
+            }
+            (Some(s), 0) => {
+                // SAFETY:
+                // Canonical change points are strictly increasing, and a
+                // positive-height run can only close at a later coordinate.
+                out.push(unsafe { I::new_unchecked(s, p.at) });
+                start = None;
+            }
+            _ => {}
+        }
+    }
+
+    debug_assert!(
+        start.is_none(),
+        "canonical stack change points must end at zero height"
+    );
+
+    // SAFETY:
+    // Positive-height runs are emitted in ascending order and are separated by
+    // zero-height gaps, so the result is canonical.
+    unsafe { IntCOSet::new_unchecked(out) }
+}
+
 impl<I> FromParallelIterator<I> for IntCOStack<I>
 where
-    I: IntCO + Send,
-    I::CoordType: Send,
+    I: IntCO + Copy + Send,
 {
+    /// Builds a stack from intervals in parallel.
+    ///
+    /// Each worker accumulates endpoint-derived stack parts locally. The final
+    /// reduction merges those parts into one canonical height function.
+    ///
+    /// The covered set is then projected from the final change points instead
+    /// of being built from a second raw interval collection. This keeps the
+    /// stack and its covered view derived from the same canonical height
+    /// function and avoids retaining all input intervals during reduction.
     #[inline]
     fn from_par_iter<T>(par_iter: T) -> Self
     where
         T: IntoParallelIterator<Item = I>,
     {
-        let points = par_iter
+        let StackParts {
+            points,
+            height_stats,
+        } = par_iter
             .into_par_iter()
-            // Each Rayon worker builds a local canonical stack from its own
-            // input shard. This keeps endpoint sorting and batch compaction
-            // embarrassingly parallel.
             .fold(StackBuildAcc::new, |mut acc, interval| {
                 acc.push_interval(interval);
                 acc
             })
-            // Finalize each local builder before global reduction.
             .map(StackBuildAcc::finish)
-            // Merge partial stack-height functions by pointwise addition.
-            .reduce(Vec::new, |lhs, rhs| merge_points(&lhs, &rhs));
+            .reduce(StackParts::default, |lhs, rhs| merge_parts(&lhs, &rhs));
+
+        let covered = covered_from_change_points::<I>(&points);
 
         Self {
-            points: points.into(),
+            change_points: points.into(),
+            covered,
+            height_stats,
         }
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_support;
+
+#[cfg(test)]
+mod tests_for_build_parts_from_endpoints;
+
+#[cfg(test)]
+mod tests_for_merge_parts;
+
+#[cfg(test)]
+mod tests_for_stack_build_acc;
+
 #[cfg(test)]
 mod tests_for_from_iter_and_from_par_iter;
+
+#[cfg(test)]
+mod tests_for_covered_from_change_points;

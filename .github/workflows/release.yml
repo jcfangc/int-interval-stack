@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   release:
-    uses: jcfangc/ci/.github/workflows/rust-crates-release.yml@v0.2.1
+    uses: jcfangc/ci/.github/workflows/rust-crates-release.yml@v0
     with:
       mode: ${{ inputs.mode || 'real' }}
       tag_dryrun: ${{ inputs.tag_dryrun || 'false' }}

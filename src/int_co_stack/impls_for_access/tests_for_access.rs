@@ -1,16 +1,19 @@
 use super::*;
-use crate::int_co_stack::test_support::*;
+use crate::{
+    change_point::test_support::oracle_points,
+    int_co_stack::{impls_for_construction::test_support::stack_from_intervals, test_support::*},
+};
 use int_interval::I32CO;
 use proptest::prelude::*;
 
 #[test]
 fn default_stack_is_empty_and_zero_everywhere() {
     let stack = IntCOStack::<I32CO>::default();
-    assert!(stack.is_empty());
+    assert!(stack.covered().is_empty());
     assert!(stack.change_points().is_empty());
-    assert_eq!(stack.max_height(), 0);
+    assert_eq!(stack.height_stats().max_height(), 0);
     assert_eq!(stack.height_at(0), 0);
-    assert!(!stack.contains_point(0));
+    assert!(!stack.covered().contains_point(0));
 }
 
 #[test]
@@ -23,7 +26,17 @@ fn half_open_boundaries_are_observed_by_height_queries() {
     assert_eq!(stack.height_at(5), 2);
     assert_eq!(stack.height_at(7), 1);
     assert_eq!(stack.height_at(10), 0);
-    assert_eq!(stack.max_height(), 2);
+    assert_eq!(stack.height_stats().max_height(), 2);
+}
+
+#[test]
+fn covered_returns_union_of_positive_height_regions() {
+    let stack = stack_from_intervals(&[(1, 5), (3, 8), (10, 12)]);
+
+    assert_eq!(
+        stack.covered().iter_intervals().collect::<Vec<_>>(),
+        vec![iv(1, 8), iv(10, 12)]
+    );
 }
 
 proptest! {
@@ -38,8 +51,8 @@ proptest! {
 
         prop_assert_eq!(stack.change_points(), expected_points.as_slice());
         prop_assert_eq!(stack.height_at(x), naive_height_at(&intervals, x));
-        prop_assert_eq!(stack.contains_point(x), naive_height_at(&intervals, x) != 0);
-        prop_assert_eq!(stack.is_empty(), expected_points.is_empty());
-        prop_assert_eq!(stack.max_height(), expected_max);
+        prop_assert_eq!(stack.covered().contains_point(x), naive_height_at(&intervals, x) != 0);
+        prop_assert_eq!(stack.covered().is_empty(), expected_points.is_empty());
+        prop_assert_eq!(stack.height_stats().max_height(), expected_max);
     }
 }
