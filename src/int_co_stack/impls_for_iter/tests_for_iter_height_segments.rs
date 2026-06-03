@@ -1,8 +1,11 @@
 use proptest::prelude::*;
 
-use crate::int_co_stack::test_support::{
-    collect_segments, cp, intervals_strategy, oracle_segments, stack_from_intervals,
-    stack_from_points,
+use crate::{
+    change_point::test_support::cp,
+    int_co_stack::{
+        impls_for_construction::test_support::{stack_from_intervals, stack_from_points},
+        test_support::{collect_segments, intervals_strategy, oracle_segments},
+    },
 };
 
 #[test]

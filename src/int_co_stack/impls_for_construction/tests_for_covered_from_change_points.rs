@@ -3,7 +3,10 @@ use int_interval_set::IntCOSet;
 use proptest::prelude::*;
 
 use super::*;
-use crate::int_co_stack::test_support::{intervals_strategy, iv, oracle_points};
+use crate::{
+    change_point::test_support::oracle_points,
+    int_co_stack::test_support::{intervals_strategy, iv},
+};
 
 fn covered_vec(points: &[ChangePoint<i32>]) -> Vec<I32CO> {
     covered_from_change_points::<I32CO>(points)

@@ -1,9 +1,11 @@
 use super::*;
-use crate::int_co_stack::{
-    impls_for_construction::test_support::{endpoints_from, ep, points_from_endpoints},
-    test_support::{
-        cp, height_stats_from_points, intervals_strategy, oracle_points, prop_assert_canonical,
+use crate::{
+    change_point::test_support::{cp, oracle_points},
+    int_co_stack::{
+        impls_for_construction::test_support::{endpoints_from, ep, points_from_endpoints},
+        test_support::{intervals_strategy, prop_assert_canonical},
     },
+    stack_height_stats::test_support::height_stats_from_points,
 };
 use proptest::prelude::*;
 

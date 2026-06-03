@@ -1,7 +1,11 @@
 use proptest::prelude::*;
 
-use crate::int_co_stack::test_support::{
-    collect_segments, cp, intervals_strategy, oracle_segments, stack_from_points,
+use crate::{
+    change_point::test_support::cp,
+    int_co_stack::{
+        impls_for_construction::test_support::{stack_from_intervals, stack_from_points},
+        test_support::{collect_segments, intervals_strategy, oracle_segments},
+    },
 };
 
 #[test]
@@ -59,7 +63,7 @@ proptest! {
     fn segments_match_oracle_for_constructed_stacks(
         intervals in intervals_strategy(0..96),
     ) {
-        let stack = crate::int_co_stack::test_support::stack_from_intervals(&intervals);
+        let stack = stack_from_intervals(&intervals);
 
         prop_assert_eq!(
             collect_segments(stack.iter_segments_from_change_points()),

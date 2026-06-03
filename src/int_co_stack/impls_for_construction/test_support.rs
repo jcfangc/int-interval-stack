@@ -1,23 +1,25 @@
 use int_interval::I32CO;
 
-use crate::int_co_stack::test_support::{height_stats_from_points, iv};
+use crate::{
+    int_co_stack::test_support::iv, stack_height_stats::test_support::height_stats_from_points,
+};
 
 use super::*;
 
 #[inline]
-pub(crate) fn ep<C>(at: C, kind: EndpointKind) -> Endpoint<C> {
+pub(super) fn ep<C>(at: C, kind: EndpointKind) -> Endpoint<C> {
     Endpoint { at, kind }
 }
 
 #[inline]
-pub(crate) fn points_from_endpoints<C>(endpoints: Vec<Endpoint<C>>) -> Vec<ChangePoint<C>>
+pub(super) fn points_from_endpoints<C>(endpoints: Vec<Endpoint<C>>) -> Vec<ChangePoint<C>>
 where
     C: Default + Copy + Ord,
 {
     build_parts_from_endpoints(endpoints).points
 }
 
-pub(crate) fn endpoints_from(intervals: &[(i32, i32)]) -> Vec<Endpoint<i32>> {
+pub(super) fn endpoints_from(intervals: &[(i32, i32)]) -> Vec<Endpoint<i32>> {
     intervals
         .iter()
         .flat_map(|&(start, end)| [ep(start, EndpointKind::Enter), ep(end, EndpointKind::Leave)])
@@ -36,7 +38,7 @@ where
 }
 
 #[inline]
-pub(crate) fn parts<C: std::default::Default>(points: Vec<ChangePoint<C>>) -> StackParts<C> {
+pub(super) fn parts<C: std::default::Default>(points: Vec<ChangePoint<C>>) -> StackParts<C> {
     let height_stats = height_stats_from_points(&points);
 
     StackParts {
@@ -46,7 +48,7 @@ pub(crate) fn parts<C: std::default::Default>(points: Vec<ChangePoint<C>>) -> St
 }
 
 #[inline]
-pub(crate) fn level_points<C>(acc: &StackBuildAcc<C>, level: usize) -> Option<&Vec<ChangePoint<C>>>
+pub(super) fn level_points<C>(acc: &StackBuildAcc<C>, level: usize) -> Option<&Vec<ChangePoint<C>>>
 where
     C: Default + Copy + Ord,
 {

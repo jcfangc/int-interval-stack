@@ -60,3 +60,6 @@ impl StackHeightStats {
         self.min_positive_height_or_zero != 0 && self.min_positive_height_or_zero == self.max_height
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_support;

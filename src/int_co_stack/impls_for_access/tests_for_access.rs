@@ -1,5 +1,8 @@
 use super::*;
-use crate::int_co_stack::test_support::*;
+use crate::{
+    change_point::test_support::oracle_points,
+    int_co_stack::{impls_for_construction::test_support::stack_from_intervals, test_support::*},
+};
 use int_interval::I32CO;
 use proptest::prelude::*;
 

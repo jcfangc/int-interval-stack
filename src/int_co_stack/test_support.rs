@@ -1,14 +1,11 @@
+use crate::change_point::test_support::oracle_points;
+
 use super::*;
 use int_interval::I32CO;
 use proptest::{prelude::*, test_runner::TestCaseResult};
-use std::collections::BTreeSet;
 
 pub(crate) fn iv(start: i32, end_excl: i32) -> I32CO {
     I32CO::try_new(start, end_excl).unwrap()
-}
-
-pub(crate) fn cp(at: i32, height_after: usize) -> ChangePoint<i32> {
-    ChangePoint { at, height_after }
 }
 
 pub(crate) fn naive_height_at(intervals: &[(i32, i32)], x: i32) -> usize {
@@ -26,16 +23,6 @@ pub(crate) fn oracle_segments(intervals: &[(i32, i32)]) -> Vec<((i32, i32), usiz
             (height != 0).then_some(((start, end_excl), height))
         })
         .collect()
-}
-
-pub(crate) fn oracle_intersects(intervals: &[(i32, i32)], query: (i32, i32)) -> bool {
-    let (start, end_excl) = query;
-    start < end_excl && (start..end_excl).any(|x| naive_height_at(intervals, x) != 0)
-}
-
-pub(crate) fn oracle_contains(intervals: &[(i32, i32)], query: (i32, i32)) -> bool {
-    let (start, end_excl) = query;
-    start >= end_excl || (start..end_excl).all(|x| naive_height_at(intervals, x) != 0)
 }
 
 pub(crate) fn collect_segments(

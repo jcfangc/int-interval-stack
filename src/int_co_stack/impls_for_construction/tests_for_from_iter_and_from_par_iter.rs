@@ -1,6 +1,9 @@
 // int_co_stack/impls_for_construction/tests_for_from_iter_and_from_par_iter.rs
 use super::*;
-use crate::int_co_stack::test_support::*;
+use crate::{
+    change_point::test_support::{cp, oracle_points},
+    int_co_stack::test_support::*,
+};
 use int_interval::I32CO;
 use proptest::prelude::*;
 

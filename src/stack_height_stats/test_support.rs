@@ -1,3 +1,5 @@
+use crate::ChangePoint;
+
 use super::*;
 
 pub(crate) fn height_stats_from_points<C>(points: &[ChangePoint<C>]) -> StackHeightStats {
