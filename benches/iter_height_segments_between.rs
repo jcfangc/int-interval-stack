@@ -1,4 +1,4 @@
-// benches/iter_intervals_between.rs
+// benches/iter_height_segments_between.rs
 
 mod datasets;
 mod support;
@@ -29,14 +29,14 @@ fn height_ranges(max_height: usize) -> Vec<(String, usize, usize)> {
     out
 }
 
-fn bench_iter_intervals_between(c: &mut Criterion) {
-    let mut group = c.benchmark_group("iter_intervals_between");
+fn bench_iter_height_segments_between(c: &mut Criterion) {
+    let mut group = c.benchmark_group("iter_height_segments_between");
 
     for &n in support::profile().sizes() {
         for (case, bounds) in cases(n) {
             let stack = stack_from_bounds(&bounds);
             let point_count = stack.change_points().len().max(1);
-            let max_height = stack.max_height();
+            let max_height = stack.height_stats().max_height();
             let id = format!("{case}_{n}");
 
             group.throughput(Throughput::Elements(point_count as u64));
@@ -69,7 +69,7 @@ fn bench_iter_intervals_between(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = support::config();
-    targets = bench_iter_intervals_between
+    targets = bench_iter_height_segments_between
 }
 
 criterion_main!(benches);

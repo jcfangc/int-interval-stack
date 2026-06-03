@@ -40,41 +40,25 @@ name = "height_at"
 harness = false
 
 [[bench]]
-name = "max_height"
+name = "iter_height_segments"
 harness = false
 
 [[bench]]
-name = "contains_point"
+name = "iter_height_segments_at_least"
 harness = false
 
 [[bench]]
-name = "intersects_interval"
+name = "iter_height_segments_at_most"
 harness = false
 
 [[bench]]
-name = "contains_interval"
+name = "iter_height_segments_exactly"
 harness = false
 
 [[bench]]
-name = "iter_intervals"
+name = "iter_height_segments_between"
 harness = false
 
 [[bench]]
-name = "iter_intervals_at_least"
-harness = false
-
-[[bench]]
-name = "iter_intervals_at_most"
-harness = false
-
-[[bench]]
-name = "iter_intervals_exactly"
-harness = false
-
-[[bench]]
-name = "iter_intervals_between"
-harness = false
-
-[[bench]]
-name = "peak_intervals"
+name = "iter_peak_height_segments"
 harness = false

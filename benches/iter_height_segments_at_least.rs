@@ -1,4 +1,4 @@
-// benches/iter_intervals_at_least.rs
+// benches/iter_height_segments_at_least.rs
 
 mod datasets;
 mod support;
@@ -14,14 +14,14 @@ fn thresholds(max_height: usize) -> Vec<usize> {
     values
 }
 
-fn bench_iter_intervals_at_least(c: &mut Criterion) {
-    let mut group = c.benchmark_group("iter_intervals_at_least");
+fn bench_iter_height_segments_at_least(c: &mut Criterion) {
+    let mut group = c.benchmark_group("iter_height_segments_at_least");
 
     for &n in support::profile().sizes() {
         for (case, bounds) in cases(n) {
             let stack = stack_from_bounds(&bounds);
             let point_count = stack.change_points().len().max(1);
-            let max_height = stack.max_height();
+            let max_height = stack.height_stats().max_height();
             let id = format!("{case}_{n}");
 
             group.throughput(Throughput::Elements(point_count as u64));
@@ -55,7 +55,7 @@ fn bench_iter_intervals_at_least(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = support::config();
-    targets = bench_iter_intervals_at_least
+    targets = bench_iter_height_segments_at_least
 }
 
 criterion_main!(benches);

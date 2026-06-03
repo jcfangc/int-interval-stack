@@ -4,8 +4,8 @@ mod support;
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use datasets::{cases, stack_from_bounds};
 
-fn bench_iter_intervals(c: &mut Criterion) {
-    let mut group = c.benchmark_group("iter_intervals");
+fn bench_iter_height_segments(c: &mut Criterion) {
+    let mut group = c.benchmark_group("iter_height_segments");
 
     for &n in support::profile().sizes() {
         for (case, bounds) in cases(n) {
@@ -39,7 +39,7 @@ fn bench_iter_intervals(c: &mut Criterion) {
 criterion_group! {
     name = benches;
     config = support::config();
-    targets = bench_iter_intervals
+    targets = bench_iter_height_segments
 }
 
 criterion_main!(benches);
