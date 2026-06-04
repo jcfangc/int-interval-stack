@@ -63,11 +63,9 @@ pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO
 
 #[inline]
 pub(crate) fn stack_from_points(points: Vec<ChangePoint<i32>>) -> IntCOStack<I32CO> {
-    let covered = covered_from_change_points::<I32CO>(&points);
-
     IntCOStack {
         change_points: Arc::from(points.clone().into_boxed_slice()),
-        covered,
+        covered: OnceLock::new(),
         height_stats: height_stats_from_points(&points),
     }
 }

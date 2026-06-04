@@ -48,10 +48,14 @@ where
         if self.height_stats.is_uniform_positive_height() {
             let height = self.height_stats.max_height();
 
-            Either::Left(self.covered.iter_intervals().map(move |iv| HeightSegment {
-                interval: iv,
-                height,
-            }))
+            Either::Left(
+                self.covered()
+                    .iter_intervals()
+                    .map(move |iv| HeightSegment {
+                        interval: iv,
+                        height,
+                    }),
+            )
         } else {
             Either::Right(self.iter_segments_from_change_points())
         }
@@ -153,12 +157,12 @@ where
         if target_height == 0 || target_height < stack_min || target_height > stack_max {
             Either::Left(std::iter::empty())
         } else if self.height_stats.is_uniform_positive_height() {
-            Either::Right(Either::Left(self.covered.iter_intervals().map(move |iv| {
-                HeightSegment {
+            Either::Right(Either::Left(self.covered().iter_intervals().map(
+                move |iv| HeightSegment {
                     interval: iv,
                     height: target_height,
-                }
-            })))
+                },
+            )))
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
