@@ -26,10 +26,15 @@ pub(crate) fn oracle_segments(intervals: &[(i32, i32)]) -> Vec<((i32, i32), usiz
 }
 
 pub(crate) fn collect_segments(
-    iter: impl Iterator<Item = (I32CO, usize)>,
+    iter: impl Iterator<Item = HeightSegment<I32CO>>,
 ) -> Vec<((i32, i32), usize)> {
-    iter.map(|(iv, h)| ((iv.start(), iv.end_excl()), h))
-        .collect()
+    iter.map(|segment| {
+        (
+            (segment.interval.start(), segment.interval.end_excl()),
+            segment.height,
+        )
+    })
+    .collect()
 }
 
 pub(crate) fn prop_assert_canonical(points: &[ChangePoint<i32>]) -> TestCaseResult {

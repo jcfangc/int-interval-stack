@@ -1,10 +1,10 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StackHeightStats {
+pub struct HeightStats {
     min_positive_height_or_zero: usize,
     max_height: usize,
 }
 
-impl Default for StackHeightStats {
+impl Default for HeightStats {
     fn default() -> Self {
         Self {
             min_positive_height_or_zero: 0,
@@ -13,7 +13,7 @@ impl Default for StackHeightStats {
     }
 }
 
-impl StackHeightStats {
+impl HeightStats {
     #[inline]
     pub(crate) fn observe(&mut self, h: usize) {
         self.max_height = self.max_height.max(h);
@@ -28,7 +28,7 @@ impl StackHeightStats {
     }
 }
 
-impl StackHeightStats {
+impl HeightStats {
     #[inline]
     pub const fn min_positive_height_or_zero(&self) -> usize {
         self.min_positive_height_or_zero
@@ -40,7 +40,7 @@ impl StackHeightStats {
     }
 }
 
-impl StackHeightStats {
+impl HeightStats {
     /// Returns whether any positive stack height was observed.
     #[inline]
     pub const fn has_positive_height(&self) -> bool {

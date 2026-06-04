@@ -15,7 +15,7 @@ where
     }
 
     #[inline]
-    pub fn height_stats(&self) -> StackHeightStats {
+    pub fn height_stats(&self) -> HeightStats {
         self.height_stats
     }
 

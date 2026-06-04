@@ -1,8 +1,6 @@
 use int_interval::I32CO;
 
-use crate::{
-    int_co_stack::test_support::iv, stack_height_stats::test_support::height_stats_from_points,
-};
+use crate::{height_stats::test_support::height_stats_from_points, int_co_stack::test_support::iv};
 
 use super::*;
 

@@ -13,7 +13,7 @@ where
         Self {
             change_points: Arc::from([]),
             covered: IntCOSet::default(),
-            height_stats: StackHeightStats::default(),
+            height_stats: HeightStats::default(),
         }
     }
 }
@@ -36,7 +36,7 @@ where
     C: Default,
 {
     points: Vec<ChangePoint<C>>,
-    height_stats: StackHeightStats,
+    height_stats: HeightStats,
 }
 
 /// Builds a canonical stack-height function from raw interval endpoint events.
@@ -83,7 +83,7 @@ where
     endpoints.sort_unstable_by_key(|endpoint| endpoint.at);
 
     let mut points = Vec::with_capacity(endpoints.len());
-    let mut height_stats = StackHeightStats::default();
+    let mut height_stats = HeightStats::default();
 
     // Height of the piecewise-constant function immediately before the next
     // unprocessed coordinate. The height before the first endpoint is zero.
@@ -185,7 +185,7 @@ where
     let rhs_points_len = rhs.points.len();
 
     let mut out_points = Vec::with_capacity(lhs_points_len + rhs_points_len);
-    let mut out_stats = StackHeightStats::default();
+    let mut out_stats = HeightStats::default();
 
     let mut lhs_height = 0usize;
     let mut rhs_height = 0usize;

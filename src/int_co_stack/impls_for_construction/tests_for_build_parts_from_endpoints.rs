@@ -1,11 +1,11 @@
 use super::*;
 use crate::{
     change_point::test_support::{cp, oracle_points},
+    height_stats::test_support::height_stats_from_points,
     int_co_stack::{
         impls_for_construction::test_support::{endpoints_from, ep, points_from_endpoints},
         test_support::{intervals_strategy, prop_assert_canonical},
     },
-    stack_height_stats::test_support::height_stats_from_points,
 };
 use proptest::prelude::*;
 
@@ -73,7 +73,7 @@ fn canceled_boundary_preserves_height_stats() {
 fn empty_input_has_default_height_stats() {
     let parts = build_parts_from_endpoints::<i32>(Vec::new());
 
-    assert_eq!(parts.height_stats, StackHeightStats::default());
+    assert_eq!(parts.height_stats, HeightStats::default());
 }
 
 #[test]

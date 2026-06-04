@@ -1,11 +1,11 @@
 use super::*;
 use crate::{
     change_point::test_support::{cp, oracle_points},
+    height_stats::test_support::height_stats_from_points,
     int_co_stack::{
         impls_for_construction::test_support::{merge_points, parts},
         test_support::*,
     },
-    stack_height_stats::test_support::height_stats_from_points,
 };
 use proptest::prelude::*;
 
@@ -70,7 +70,7 @@ fn empty_inputs_have_default_height_stats() {
     let merged = merge_parts(&parts::<i32>(Vec::new()), &parts::<i32>(Vec::new()));
 
     assert!(merged.points.is_empty());
-    assert_eq!(merged.height_stats, StackHeightStats::default());
+    assert_eq!(merged.height_stats, HeightStats::default());
 }
 
 #[test]

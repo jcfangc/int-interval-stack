@@ -1,11 +1,11 @@
 use super::*;
 use crate::{
     change_point::test_support::{cp, oracle_points},
+    height_stats::test_support::height_stats_from_points,
     int_co_stack::{
         impls_for_construction::test_support::{level_points, parts},
         test_support::*,
     },
-    stack_height_stats::test_support::height_stats_from_points,
 };
 use proptest::prelude::*;
 
