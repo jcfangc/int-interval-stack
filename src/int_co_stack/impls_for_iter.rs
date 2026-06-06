@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use either::Either;
 
 use super::*;
@@ -20,15 +22,12 @@ where
         self.change_points.windows(2).filter_map(|w| {
             let start = w[0].at;
             let end_excl = w[1].at;
-            let height = w[0].height_after;
 
-            // SAFETY:
-            // Canonical change points are strictly increasing, so every
-            // adjacent pair forms a valid non-empty interval.
-            let iv = unsafe { I::new_unchecked(start, end_excl) };
-
-            (height != 0).then_some(HeightSegment {
-                interval: iv,
+            NonZeroUsize::new(w[0].height_after).map(|height| HeightSegment {
+                // SAFETY:
+                // Canonical change points are strictly increasing, so every
+                // adjacent pair forms a valid non-empty interval.
+                interval: unsafe { I::new_unchecked(start, end_excl) },
                 height,
             })
         })
@@ -45,16 +44,11 @@ where
     /// reconstructed from change points.
     #[inline]
     pub fn iter_height_segments(&self) -> impl Iterator<Item = HeightSegment<I>> + '_ {
-        if self.height_stats.is_uniform_positive_height() {
-            let height = self.height_stats.max_height();
-
+        if let Some(height) = self.height_stats.uniform_positive_height() {
             Either::Left(
                 self.covered()
                     .iter_intervals()
-                    .map(move |iv| HeightSegment {
-                        interval: iv,
-                        height,
-                    }),
+                    .map(move |interval| HeightSegment { interval, height }),
             )
         } else {
             Either::Right(self.iter_segments_from_change_points())
@@ -92,7 +86,7 @@ where
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
-                    .filter(move |segment| segment.height >= min_height),
+                    .filter(move |segment| segment.height.get() >= min_height),
             ))
         }
     }
@@ -126,7 +120,7 @@ where
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
-                    .filter(move |segment| segment.height <= max_height),
+                    .filter(move |segment| segment.height.get() <= max_height),
             ))
         }
     }
@@ -151,15 +145,20 @@ where
         &self,
         target_height: usize,
     ) -> impl Iterator<Item = HeightSegment<I>> + '_ {
-        let stack_min = self.height_stats.min_positive_height_or_zero();
-        let stack_max = self.height_stats.max_height();
+        let Some(target_height) = NonZeroUsize::new(target_height) else {
+            return Either::Left(std::iter::empty());
+        };
 
-        if target_height == 0 || target_height < stack_min || target_height > stack_max {
+        let target = target_height.get();
+
+        if target < self.height_stats.min_positive_height_or_zero()
+            || target > self.height_stats.max_height()
+        {
             Either::Left(std::iter::empty())
-        } else if self.height_stats.is_uniform_positive_height() {
+        } else if self.height_stats.uniform_positive_height() == Some(target_height) {
             Either::Right(Either::Left(self.covered().iter_intervals().map(
-                move |iv| HeightSegment {
-                    interval: iv,
+                move |interval| HeightSegment {
+                    interval,
                     height: target_height,
                 },
             )))
@@ -211,7 +210,7 @@ where
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
                     .filter(move |segment| {
-                        query_min <= segment.height && segment.height <= max_height
+                        query_min <= segment.height.get() && segment.height.get() <= max_height
                     }),
             ))
         }

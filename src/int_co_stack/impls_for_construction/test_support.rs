@@ -1,6 +1,6 @@
 use int_interval::I32CO;
 
-use crate::{height_stats::test_support::height_stats_from_points, int_co_stack::test_support::iv};
+use crate::height_stats::test_support::height_stats_from_points;
 
 use super::*;
 
@@ -54,11 +54,6 @@ where
         .get(level)
         .and_then(Option::as_ref)
         .map(|parts| &parts.points)
-}
-
-#[inline]
-pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO> {
-    intervals.iter().copied().map(|(s, e)| iv(s, e)).collect()
 }
 
 #[inline]

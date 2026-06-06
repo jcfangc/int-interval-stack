@@ -31,7 +31,7 @@ pub(crate) fn collect_segments(
     iter.map(|segment| {
         (
             (segment.interval.start(), segment.interval.end_excl()),
-            segment.height,
+            segment.height.get(),
         )
     })
     .collect()
@@ -61,4 +61,9 @@ pub(crate) fn intervals_strategy(
     range: std::ops::Range<usize>,
 ) -> impl Strategy<Value = Vec<(i32, i32)>> {
     prop::collection::vec(interval_strategy(), range)
+}
+
+#[inline]
+pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO> {
+    intervals.iter().copied().map(|(s, e)| iv(s, e)).collect()
 }

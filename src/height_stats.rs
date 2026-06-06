@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HeightStats {
     min_positive_height_or_zero: usize,
@@ -58,6 +60,17 @@ impl HeightStats {
     #[inline]
     pub const fn is_uniform_positive_height(&self) -> bool {
         self.min_positive_height_or_zero != 0 && self.min_positive_height_or_zero == self.max_height
+    }
+}
+
+impl HeightStats {
+    #[inline]
+    pub const fn uniform_positive_height(&self) -> Option<NonZeroUsize> {
+        if self.min_positive_height_or_zero == self.max_height {
+            NonZeroUsize::new(self.max_height)
+        } else {
+            None
+        }
     }
 }
 

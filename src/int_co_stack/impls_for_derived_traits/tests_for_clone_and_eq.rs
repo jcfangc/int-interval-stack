@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::int_co_stack::impls_for_construction::test_support::stack_from_intervals;
+use crate::int_co_stack::test_support::stack_from_intervals;
 
 #[test]
 fn clone_preserves_canonical_state() {

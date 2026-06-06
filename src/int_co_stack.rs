@@ -20,6 +20,7 @@ mod impls_for_access;
 mod impls_for_construction;
 mod impls_for_derived_traits;
 mod impls_for_iter;
+mod impls_for_windows;
 
 #[cfg(test)]
 pub(crate) mod test_support;
