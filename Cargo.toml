@@ -62,3 +62,23 @@ harness = false
 [[bench]]
 name = "iter_peak_height_segments"
 harness = false
+
+[[bench]]
+name = "iter_windows"
+harness = false
+
+[[bench]]
+name = "par_iter_windows"
+harness = false
+
+[[bench]]
+name = "window_iter_height_runs"
+harness = false
+
+[[bench]]
+name = "window_par_iter_height_runs"
+harness = false
+
+[[bench]]
+name = "window_dense_baseline"
+harness = false
