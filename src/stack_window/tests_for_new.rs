@@ -1,4 +1,4 @@
-use crate::int_co_stack::test_support::{iv, stack_from_intervals};
+use crate::int_co_stack::test_support::{iv_i32, stack_from_intervals};
 
 use super::*;
 
@@ -9,7 +9,7 @@ fn assert_window_cache(
     point_end: usize,
     height_at_start: usize,
 ) {
-    let window = StackWindow::new(stack, iv(window.0, window.1));
+    let window = StackWindow::new(stack, iv_i32(window.0, window.1));
 
     assert_eq!(window.point_start, point_start);
     assert_eq!(window.point_end, point_end);

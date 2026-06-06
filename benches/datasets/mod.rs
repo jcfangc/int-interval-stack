@@ -3,11 +3,13 @@ use int_interval_stack::IntCOStack;
 
 pub(crate) type Bounds = (i32, i32);
 
+#[allow(dead_code)]
 #[inline]
 pub(crate) fn iv(start: i32, end_excl: i32) -> I32CO {
     I32CO::try_new(start, end_excl).unwrap()
 }
 
+#[allow(dead_code)]
 #[inline]
 pub(crate) fn stack_from_bounds(bounds: &[Bounds]) -> IntCOStack<I32CO> {
     bounds.iter().copied().map(|(s, e)| iv(s, e)).collect()
@@ -86,6 +88,7 @@ pub(crate) fn cases(n: usize) -> Vec<(&'static str, Vec<Bounds>)> {
     ]
 }
 
+#[allow(dead_code)]
 pub(crate) fn point_queries(bounds: &[Bounds]) -> Vec<i32> {
     let mut out = Vec::with_capacity(bounds.len().min(128) * 3 + 2);
 
@@ -100,23 +103,6 @@ pub(crate) fn point_queries(bounds: &[Bounds]) -> Vec<i32> {
     }
     if let Some(&(_, e)) = bounds.last() {
         out.push(e + 1);
-    }
-
-    out.sort_unstable();
-    out.dedup();
-    out
-}
-
-pub(crate) fn interval_queries(bounds: &[Bounds]) -> Vec<Bounds> {
-    let mut out = Vec::with_capacity(bounds.len().min(96) * 4);
-
-    for &(s, e) in bounds.iter().take(96) {
-        let mid = s + ((e - s) / 2).max(1);
-
-        out.push((s, e));
-        out.push((s, mid));
-        out.push((s.saturating_sub(1), e));
-        out.push((e, e + 1));
     }
 
     out.sort_unstable();

@@ -5,7 +5,7 @@ use proptest::prelude::*;
 use super::*;
 use crate::{
     change_point::test_support::oracle_points,
-    int_co_stack::test_support::{intervals_strategy, iv},
+    int_co_stack::test_support::{intervals_strategy, iv_i32},
 };
 
 fn covered_vec(points: &[ChangePoint<i32>]) -> Vec<I32CO> {
@@ -32,7 +32,7 @@ fn single_positive_run_returns_one_interval() {
         },
     ];
 
-    assert_eq!(covered_vec(&points), vec![iv(1, 5)]);
+    assert_eq!(covered_vec(&points), vec![iv_i32(1, 5)]);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn positive_height_changes_are_merged_into_one_covered_run() {
         },
     ];
 
-    assert_eq!(covered_vec(&points), vec![iv(1, 9)]);
+    assert_eq!(covered_vec(&points), vec![iv_i32(1, 9)]);
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn zero_height_gaps_split_covered_runs() {
         },
     ];
 
-    assert_eq!(covered_vec(&points), vec![iv(1, 3), iv(5, 8)]);
+    assert_eq!(covered_vec(&points), vec![iv_i32(1, 3), iv_i32(5, 8)]);
 }
 
 proptest! {
@@ -92,7 +92,7 @@ proptest! {
         let expected: IntCOSet<I32CO> = xs
             .iter()
             .copied()
-            .map(|(start, end_excl)| iv(start, end_excl))
+            .map(|(start, end_excl)| iv_i32(start, end_excl))
             .collect();
 
         prop_assert_eq!(covered, expected);

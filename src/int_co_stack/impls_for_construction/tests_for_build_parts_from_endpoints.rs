@@ -3,17 +3,13 @@ use crate::{
     change_point::test_support::{cp, oracle_points},
     height_stats::test_support::height_stats_from_points,
     int_co_stack::{
-        impls_for_construction::test_support::{endpoints_from, ep, points_from_endpoints},
+        impls_for_construction::test_support::{
+            assert_parts_eq, endpoints_from, ep, points_from_endpoints,
+        },
         test_support::{intervals_strategy, prop_assert_canonical},
     },
 };
 use proptest::prelude::*;
-
-#[inline]
-fn assert_parts_eq(parts: &StackParts<i32>, expected: Vec<ChangePoint<i32>>) {
-    assert_eq!(parts.points, expected);
-    assert_eq!(parts.height_stats, height_stats_from_points(&expected));
-}
 
 #[test]
 fn empty_endpoints_build_empty_points() {

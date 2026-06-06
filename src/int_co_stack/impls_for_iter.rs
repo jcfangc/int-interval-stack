@@ -240,3 +240,15 @@ mod tests_for_iter_segments_from_change_points;
 
 #[cfg(test)]
 mod tests_for_iter_height_segments;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_at_least;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_at_most;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_exactly;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_between;

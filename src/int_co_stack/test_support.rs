@@ -4,7 +4,7 @@ use super::*;
 use int_interval::I32CO;
 use proptest::{prelude::*, test_runner::TestCaseResult};
 
-pub(crate) fn iv(start: i32, end_excl: i32) -> I32CO {
+pub(crate) fn iv_i32(start: i32, end_excl: i32) -> I32CO {
     I32CO::try_new(start, end_excl).unwrap()
 }
 
@@ -65,5 +65,9 @@ pub(crate) fn intervals_strategy(
 
 #[inline]
 pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO> {
-    intervals.iter().copied().map(|(s, e)| iv(s, e)).collect()
+    intervals
+        .iter()
+        .copied()
+        .map(|(s, e)| iv_i32(s, e))
+        .collect()
 }

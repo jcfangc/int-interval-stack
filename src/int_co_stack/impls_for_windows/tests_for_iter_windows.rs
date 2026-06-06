@@ -1,28 +1,11 @@
 use int_interval::I8CO;
 use rayon::iter::ParallelIterator;
 
-use crate::int_co_stack::impls_for_windows::test_support::window_bounds;
+use crate::int_co_stack::impls_for_windows::test_support::{
+    run_bounds, stack_from_i8_intervals, window_bounds,
+};
 
 use super::*;
-
-fn iv(start: i8, end_excl: i8) -> I8CO {
-    I8CO::try_new(start, end_excl).unwrap()
-}
-
-fn stack_from_i8_intervals(intervals: &[(i8, i8)]) -> IntCOStack<I8CO> {
-    intervals
-        .iter()
-        .copied()
-        .map(|(start, end_excl)| iv(start, end_excl))
-        .collect()
-}
-
-fn run_bounds(window: StackWindow<'_, I8CO>) -> Vec<((i8, i8), usize)> {
-    window
-        .iter_height_runs()
-        .map(|run| ((run.interval.start(), run.interval.end_excl()), run.height))
-        .collect()
-}
 
 fn serial_windows(stack: &IntCOStack<I8CO>, from: i8, to: i8, len: u8) -> Vec<(i8, i8)> {
     stack

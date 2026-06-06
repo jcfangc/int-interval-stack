@@ -10,7 +10,7 @@ use proptest::prelude::*;
 #[test]
 fn from_iter_handles_many_batches_of_identical_intervals() {
     let n = BATCH_SIZE * 3 + 5;
-    let input = vec![iv(0, 10); n];
+    let input = vec![iv_i32(0, 10); n];
     let stack: IntCOStack<I32CO> = input.into_iter().collect();
 
     assert_eq!(stack.change_points(), &[cp(0, n), cp(10, 0)]);
@@ -21,10 +21,10 @@ proptest! {
     #[test]
     fn par_collect_matches_seq_collect(intervals in intervals_strategy(0..256)) {
         let seq: IntCOStack<I32CO> =
-            intervals.iter().copied().map(|(s, e)| iv(s, e)).collect();
+            intervals.iter().copied().map(|(s, e)| iv_i32(s, e)).collect();
 
         let par: IntCOStack<I32CO> =
-            intervals.iter().copied().map(|(s, e)| iv(s, e)).collect::<Vec<_>>()
+            intervals.iter().copied().map(|(s, e)| iv_i32(s, e)).collect::<Vec<_>>()
                 .into_par_iter()
                 .collect();
 
@@ -35,7 +35,7 @@ proptest! {
     #[test]
     fn seq_collect_matches_public_oracle(intervals in intervals_strategy(0..256)) {
         let stack: IntCOStack<I32CO> =
-            intervals.iter().copied().map(|(s, e)| iv(s, e)).collect();
+            intervals.iter().copied().map(|(s, e)| iv_i32(s, e)).collect();
 
         let expected = oracle_points(&intervals);
 
