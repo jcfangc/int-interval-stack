@@ -8,16 +8,13 @@
 
 Canonical stack-height functions for integer half-open intervals.
 
-`int-interval-stack` builds an immutable representation of interval overlap
-multiplicity. Given a collection of half-open integer intervals, it stores the
-resulting piecewise-constant height function as canonical change points.
+`int-interval-stack` builds an immutable representation of interval overlap multiplicity. Given a collection of half-open integer intervals, it stores the resulting piecewise-constant height function as canonical change points.
 
 ```text
 [start, end) contributes +1 height on every covered coordinate.
 ```
 
-This is useful when a boolean interval set is not enough and the number of
-overlapping intervals matters.
+This is useful when a boolean interval set is not enough and the number of overlapping intervals matters.
 
 ## Model
 
@@ -39,8 +36,7 @@ Internally, the stack is represented as ordered change points:
 ChangePoint { at, height_after }
 ```
 
-Each change point means that from `at` onward, until the next change point, the
-active stack height is `height_after`.
+Each change point means that from `at` onward, until the next change point, the active stack height is `height_after`.
 
 The representation is canonical:
 
@@ -57,8 +53,7 @@ int-interval-stack = "0.3"
 int-interval = "0.9"
 ```
 
-Enable `rayon` in your own crate when using parallel collection or parallel
-iteration.
+Enable `rayon` in your own crate when using parallel collection or parallel iteration.
 
 ## Basic usage
 
@@ -121,8 +116,7 @@ assert_eq!(points[3].height_after, 0);
 
 ## Covered set
 
-`covered()` projects the stack to a canonical interval set containing all
-coordinates whose stack height is positive.
+`covered()` projects the stack to a canonical interval set containing all coordinates whose stack height is positive.
 
 ```rust
 use int_interval::traits::IntCO;
@@ -241,14 +235,11 @@ stack.iter_height_segments_between(1, 3);
 stack.iter_peak_height_segments();
 ```
 
-These iterators use height statistics for cheap fast paths. For example, queries
-above the observed maximum height can return an empty iterator immediately, and
-uniform-height stacks can reuse the covered-set shape.
+These iterators use height statistics for cheap fast paths. For example, queries above the observed maximum height can return an empty iterator immediately, and uniform-height stacks can reuse the covered-set shape.
 
 ## Window iteration
 
-`iter_windows(from, to, len)` iterates over all fixed-length coordinate windows
-fully contained in `[from, to)`.
+`iter_windows(from, to, len)` iterates over all fixed-length coordinate windows fully contained in `[from, to)`.
 
 Window starts advance by one coordinate unit:
 
@@ -259,9 +250,7 @@ Window starts advance by one coordinate unit:
 ...
 ```
 
-Each yielded `StackWindow` can be decomposed into constant-height runs. Unlike
-`iter_height_segments()`, window height runs include zero-height gaps inside the
-window.
+Each yielded `StackWindow` can be decomposed into constant-height runs. Unlike `iter_height_segments()`, window height runs include zero-height gaps inside the window.
 
 ```rust
 use int_interval::traits::IntCO;
@@ -403,13 +392,13 @@ let run_count = window
 assert_eq!(run_count, 2);
 ```
 
-Parallel construction and parallel iteration are intended for larger workloads.
-For small inputs or short windows, sequential iteration may be faster due to
-Rayon scheduling overhead.
+Parallel construction and parallel iteration are intended for larger workloads. For small inputs or short windows, sequential iteration may be faster due to Rayon scheduling overhead.
 
-## Predicates
+## Covered-set queries
 
-The stack exposes covered-set predicates.
+`IntCOStack` stores overlap multiplicity. Boolean coverage queries are delegated to the projected covered set.
+
+Use `covered()` to get the canonical interval set of all coordinates whose stack height is positive, then call the `int-interval-set` query methods on that set.
 
 ```rust
 use int_interval::I32CO;
@@ -426,48 +415,59 @@ let stack: IntCOStack<I32CO> = [
 .into_iter()
 .collect();
 
-assert!(stack.contains_point(5));
-assert!(!stack.contains_point(15));
+let covered = stack.covered();
 
-assert!(stack.intersects_interval(iv(8, 12)));
-assert!(!stack.intersects_interval(iv(12, 18)));
+assert!(covered.contains_point(5));
+assert!(!covered.contains_point(15));
 
-assert!(stack.contains_interval(iv(2, 8)));
-assert!(!stack.contains_interval(iv(8, 22)));
+assert!(covered.intersects_interval(iv(8, 12)));
+assert!(!covered.intersects_interval(iv(12, 18)));
+
+assert!(covered.contains_interval(iv(2, 8)));
+assert!(!covered.contains_interval(iv(8, 22)));
 ```
+
+The covered set is built lazily from the stack change points and cached after the first call. This keeps stack construction focused on the height function while reusing `int-interval-set` for boolean interval-set queries.
 
 ## Complexity
 
 Let:
 
 * `n` be the number of input intervals;
-* `m` be the number of canonical change points;
+* `m` be the number of canonical stack change points;
+* `c` be the number of intervals in the projected covered set;
 * `w` be the number of emitted coordinate windows;
-* `r` be the number of height runs emitted for a query or window workload.
+* `q` be the number of stack change points strictly inside a single window;
+* `r` be the number of height runs emitted by a window workload.
 
-| Operation                              |                                                Complexity |
-| -------------------------------------- | --------------------------------------------------------: |
-| Build from iterator                    |                `O(n log n)` dominated by endpoint sorting |
-| Build from parallel iterator           |               parallel endpoint compaction plus reduction |
-| `change_points()`                      |                                                    `O(1)` |
-| `height_stats()`                       |                                                    `O(1)` |
-| `height_at(x)`                         |                                                `O(log m)` |
-| `covered()` first call                 |                                                    `O(m)` |
-| `covered()` after cache initialization |                                                    `O(1)` |
-| `contains_point(x)`                    |               typically `O(log m)` via covered-set lookup |
-| `iter_height_segments()`               |                                                    `O(m)` |
-| height-filtered segment iteration      |        `O(m)` worst case, with statistic-based fast paths |
-| `iter_windows(from, to, len)`          | `O(w)` window objects, excluding per-window run iteration |
-| `window.iter_height_runs()`            |   proportional to the change points scanned in the window |
-| `par_iter_windows(from, to, len)`      |               indexed parallel iteration over `w` windows |
-| `window.par_iter_height_runs()`        |  indexed parallel iteration over the window's height runs |
+| Operation                              |                                                   Complexity |
+| -------------------------------------- | -----------------------------------------------------------: |
+| Build from iterator                    |                   `O(n log n)` dominated by endpoint sorting |
+| Build from parallel iterator           |                  parallel endpoint compaction plus reduction |
+| `change_points()`                      |                                                       `O(1)` |
+| `height_stats()`                       |                                                       `O(1)` |
+| `height_at(x)`                         |                                                   `O(log m)` |
+| `covered()` first call                 |                       `O(m)` to project positive-height runs |
+| `covered()` after cache initialization |                    `O(1)` to return the cached set reference |
+| `covered().contains_point(x)`          |                              delegated to `int-interval-set` |
+| `covered().intersects_interval(query)` |                              delegated to `int-interval-set` |
+| `covered().contains_interval(query)`   |                              delegated to `int-interval-set` |
+| `iter_height_segments()`               |                                            `O(m)` worst case |
+| height-filtered segment iteration      |           `O(m)` worst case, with statistic-based fast paths |
+| `iter_windows(from, to, len)`          |    `O(w)` window objects, excluding per-window run iteration |
+| `StackWindow::new(stack, interval)`    |     `O(log m)` to locate the window-local change-point range |
+| `window.height_run_count()`            |                                                       `O(1)` |
+| `window.iter_height_runs()`            |                                      `O(q + 1)` emitted runs |
+| `par_iter_windows(from, to, len)`      |                  indexed parallel iteration over `w` windows |
+| `window.par_iter_height_runs()`        | indexed parallel iteration over the window-local height runs |
 
-Exact costs for covered-set predicates depend on `int-interval-set`.
+The stack itself does not duplicate covered-set predicate APIs. Exact complexity for boolean set queries is defined by `int-interval-set`.
+
+Window height runs include zero-height gaps. Therefore a window with no interior change points still emits one run covering the full window.
 
 ## Dense-window baseline
 
-A dense alternative is to materialize one height value per coordinate into a
-`Vec<usize>` and use `std::slice::windows(len)` plus local run compression.
+A dense alternative is to materialize one height value per coordinate into a `Vec<usize>` and use `std::slice::windows(len)` plus local run compression.
 
 This baseline is strong when:
 
@@ -476,9 +476,7 @@ This baseline is strong when:
 * windows are short;
 * the height function is highly fragmented.
 
-`IntCOStack` window iteration is designed for cases where the stack already
-exists as canonical change points, the coordinate domain may be large or sparse,
-or each window can be represented by relatively few height runs.
+`IntCOStack` window iteration is designed for cases where the stack already exists as canonical change points, the coordinate domain may be large or sparse, or each window can be represented by relatively few height runs.
 
 In short:
 
@@ -536,8 +534,7 @@ std_dense_end_to_end:
     materialize dense heights from the stack, then use std::slice::windows(...)
 ```
 
-The dense query-only baseline is intentionally strong. It does not include the
-cost of constructing the dense height vector.
+The dense query-only baseline is intentionally strong. It does not include the cost of constructing the dense height vector.
 
 ## License
 
