@@ -54,7 +54,7 @@ fn bench_iter_height_segments_between(c: &mut Criterion) {
                         {
                             acc ^= (height_seg.interval.start() as i64) << 1;
                             acc ^= (height_seg.interval.end_excl() as i64) << 2;
-                            acc ^= height_seg.height as i64;
+                            acc ^= height_seg.height.get() as i64;
                         }
 
                         black_box(acc);

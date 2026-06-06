@@ -40,7 +40,7 @@ fn bench_iter_height_segments_at_most(c: &mut Criterion) {
                         for height_seg in stack.iter_height_segments_at_most(black_box(max)) {
                             acc ^= (height_seg.interval.start() as i64) << 1;
                             acc ^= (height_seg.interval.end_excl() as i64) << 2;
-                            acc ^= height_seg.height as i64;
+                            acc ^= height_seg.height.get() as i64;
                         }
 
                         black_box(acc);
