@@ -1,10 +1,12 @@
+use std::num::NonZeroUsize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct StackHeightStats {
+pub struct HeightStats {
     min_positive_height_or_zero: usize,
     max_height: usize,
 }
 
-impl Default for StackHeightStats {
+impl Default for HeightStats {
     fn default() -> Self {
         Self {
             min_positive_height_or_zero: 0,
@@ -13,7 +15,7 @@ impl Default for StackHeightStats {
     }
 }
 
-impl StackHeightStats {
+impl HeightStats {
     #[inline]
     pub(crate) fn observe(&mut self, h: usize) {
         self.max_height = self.max_height.max(h);
@@ -28,7 +30,7 @@ impl StackHeightStats {
     }
 }
 
-impl StackHeightStats {
+impl HeightStats {
     #[inline]
     pub const fn min_positive_height_or_zero(&self) -> usize {
         self.min_positive_height_or_zero
@@ -40,7 +42,7 @@ impl StackHeightStats {
     }
 }
 
-impl StackHeightStats {
+impl HeightStats {
     /// Returns whether any positive stack height was observed.
     #[inline]
     pub const fn has_positive_height(&self) -> bool {
@@ -58,6 +60,17 @@ impl StackHeightStats {
     #[inline]
     pub const fn is_uniform_positive_height(&self) -> bool {
         self.min_positive_height_or_zero != 0 && self.min_positive_height_or_zero == self.max_height
+    }
+}
+
+impl HeightStats {
+    #[inline]
+    pub const fn uniform_positive_height(&self) -> Option<NonZeroUsize> {
+        if self.min_positive_height_or_zero == self.max_height {
+            NonZeroUsize::new(self.max_height)
+        } else {
+            None
+        }
     }
 }
 

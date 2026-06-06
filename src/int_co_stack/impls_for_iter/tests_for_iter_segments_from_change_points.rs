@@ -3,8 +3,10 @@ use proptest::prelude::*;
 use crate::{
     change_point::test_support::cp,
     int_co_stack::{
-        impls_for_construction::test_support::{stack_from_intervals, stack_from_points},
-        test_support::{collect_segments, intervals_strategy, oracle_segments},
+        impls_for_construction::test_support::stack_from_points,
+        test_support::{
+            collect_segments, intervals_strategy, oracle_segments, stack_from_intervals,
+        },
     },
 };
 
@@ -70,4 +72,44 @@ proptest! {
             oracle_segments(&intervals),
         );
     }
+}
+
+#[test]
+fn single_change_point_yields_no_closed_segment() {
+    let stack = stack_from_points(vec![cp(0, 1)]);
+
+    assert_eq!(
+        collect_segments(stack.iter_segments_from_change_points()),
+        vec![],
+    );
+}
+
+#[test]
+fn trailing_positive_height_without_next_boundary_is_not_yielded() {
+    let stack = stack_from_points(vec![cp(0, 1), cp(4, 0), cp(7, 2)]);
+
+    assert_eq!(
+        collect_segments(stack.iter_segments_from_change_points()),
+        vec![((0, 4), 1)],
+    );
+}
+
+#[test]
+fn leading_zero_height_boundary_does_not_create_segment() {
+    let stack = stack_from_points(vec![cp(-5, 0), cp(-2, 3), cp(2, 0)]);
+
+    assert_eq!(
+        collect_segments(stack.iter_segments_from_change_points()),
+        vec![((-2, 2), 3)],
+    );
+}
+
+#[test]
+fn negative_coordinates_preserve_segment_bounds() {
+    let stack = stack_from_points(vec![cp(-10, 2), cp(-3, 1), cp(4, 0)]);
+
+    assert_eq!(
+        collect_segments(stack.iter_segments_from_change_points()),
+        vec![((-10, -3), 2), ((-3, 4), 1)],
+    );
 }

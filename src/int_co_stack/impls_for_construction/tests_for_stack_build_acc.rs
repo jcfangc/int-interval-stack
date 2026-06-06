@@ -1,28 +1,15 @@
 use super::*;
 use crate::{
     change_point::test_support::{cp, oracle_points},
+    height_stats::test_support::height_stats_from_points,
     int_co_stack::{
-        impls_for_construction::test_support::{level_points, parts},
+        impls_for_construction::test_support::{
+            assert_level_eq, assert_parts_eq, level_points, parts,
+        },
         test_support::*,
     },
-    stack_height_stats::test_support::height_stats_from_points,
 };
 use proptest::prelude::*;
-
-#[inline]
-fn assert_parts_eq(parts: &StackParts<i32>, expected: Vec<ChangePoint<i32>>) {
-    assert_eq!(parts.points, expected);
-    assert_eq!(parts.height_stats, height_stats_from_points(&expected));
-}
-
-#[inline]
-fn assert_level_eq(acc: &StackBuildAcc<i32>, level: usize, expected: Vec<ChangePoint<i32>>) {
-    let parts = acc.levels[level]
-        .as_ref()
-        .expect("expected occupied stack-build level");
-
-    assert_parts_eq(parts, expected);
-}
 
 #[test]
 fn flush_on_empty_is_noop() {
@@ -42,7 +29,7 @@ fn push_interval_flushes_at_batch_boundary() {
     for i in 0..(BATCH_SIZE - 1) as i32 {
         let iv_ = (i * 2, i * 2 + 1);
         intervals.push(iv_);
-        acc.push_interval(iv(iv_.0, iv_.1));
+        acc.push_interval(iv_i32(iv_.0, iv_.1));
     }
 
     assert_eq!(acc.endpoints.len(), (BATCH_SIZE - 1) * 2);
@@ -50,7 +37,7 @@ fn push_interval_flushes_at_batch_boundary() {
 
     let last = (10_000, 10_001);
     intervals.push(last);
-    acc.push_interval(iv(last.0, last.1));
+    acc.push_interval(iv_i32(last.0, last.1));
 
     let expected = oracle_points(&intervals);
 
@@ -97,7 +84,7 @@ fn finish_merges_existing_levels_and_unflushed_tail() {
     let mut acc = StackBuildAcc::<i32>::new();
 
     acc.push_points(parts(vec![cp(0, 1), cp(5, 0)]));
-    acc.push_interval(iv(2, 4));
+    acc.push_interval(iv_i32(2, 4));
 
     let parts = acc.finish();
     let expected = oracle_points(&[(0, 5), (2, 4)]);
@@ -125,7 +112,7 @@ proptest! {
         let mut acc = StackBuildAcc::<i32>::new();
 
         for &(s, e) in &intervals {
-            acc.push_interval(iv(s, e));
+            acc.push_interval(iv_i32(s, e));
         }
 
         let parts = acc.finish();

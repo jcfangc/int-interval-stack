@@ -1,3 +1,5 @@
+use std::num::NonZeroUsize;
+
 use either::Either;
 
 use super::*;
@@ -16,19 +18,18 @@ where
     /// Zero-height gaps are skipped. For each adjacent change-point pair
     /// `(p[i], p[i + 1])`, the segment height is `p[i].height_after`.
     #[inline]
-    fn iter_segments_from_change_points(&self) -> impl Iterator<Item = (I, usize)> + '_ {
+    fn iter_segments_from_change_points(&self) -> impl Iterator<Item = HeightSegment<I>> + '_ {
         self.change_points.windows(2).filter_map(|w| {
             let start = w[0].at;
             let end_excl = w[1].at;
-            let height = w[0].height_after;
 
-            (height != 0).then_some((
+            NonZeroUsize::new(w[0].height_after).map(|height| HeightSegment {
                 // SAFETY:
                 // Canonical change points are strictly increasing, so every
                 // adjacent pair forms a valid non-empty interval.
-                unsafe { I::new_unchecked(start, end_excl) },
+                interval: unsafe { I::new_unchecked(start, end_excl) },
                 height,
-            ))
+            })
         })
     }
 
@@ -42,11 +43,13 @@ where
     /// from `height_stats`. Otherwise, the height-preserving segmentation is
     /// reconstructed from change points.
     #[inline]
-    pub fn iter_height_segments(&self) -> impl Iterator<Item = (I, usize)> + '_ {
-        if self.height_stats.is_uniform_positive_height() {
-            let height = self.height_stats.max_height();
-
-            Either::Left(self.covered.iter_intervals().map(move |iv| (iv, height)))
+    pub fn iter_height_segments(&self) -> impl Iterator<Item = HeightSegment<I>> + '_ {
+        if let Some(height) = self.height_stats.uniform_positive_height() {
+            Either::Left(
+                self.covered()
+                    .iter_intervals()
+                    .map(move |interval| HeightSegment { interval, height }),
+            )
         } else {
             Either::Right(self.iter_segments_from_change_points())
         }
@@ -73,7 +76,7 @@ where
     pub fn iter_height_segments_at_least(
         &self,
         min_height: usize,
-    ) -> impl Iterator<Item = (I, usize)> + '_ {
+    ) -> impl Iterator<Item = HeightSegment<I>> + '_ {
         let stack_max = self.height_stats.max_height();
 
         if min_height > stack_max {
@@ -83,7 +86,7 @@ where
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
-                    .filter(move |&(_, h)| h >= min_height),
+                    .filter(move |segment| segment.height.get() >= min_height),
             ))
         }
     }
@@ -107,7 +110,7 @@ where
     pub fn iter_height_segments_at_most(
         &self,
         max_height: usize,
-    ) -> impl Iterator<Item = (I, usize)> + '_ {
+    ) -> impl Iterator<Item = HeightSegment<I>> + '_ {
         let stack_min = self.height_stats.min_positive_height_or_zero();
 
         if max_height == 0 || max_height < stack_min {
@@ -117,7 +120,7 @@ where
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
-                    .filter(move |&(_, h)| h <= max_height),
+                    .filter(move |segment| segment.height.get() <= max_height),
             ))
         }
     }
@@ -141,22 +144,28 @@ where
     pub fn iter_height_segments_exactly(
         &self,
         target_height: usize,
-    ) -> impl Iterator<Item = (I, usize)> + '_ {
-        let stack_min = self.height_stats.min_positive_height_or_zero();
-        let stack_max = self.height_stats.max_height();
+    ) -> impl Iterator<Item = HeightSegment<I>> + '_ {
+        let Some(target_height) = NonZeroUsize::new(target_height) else {
+            return Either::Left(std::iter::empty());
+        };
 
-        if target_height == 0 || target_height < stack_min || target_height > stack_max {
+        let target = target_height.get();
+
+        if target < self.height_stats.min_positive_height_or_zero()
+            || target > self.height_stats.max_height()
+        {
             Either::Left(std::iter::empty())
-        } else if self.height_stats.is_uniform_positive_height() {
-            Either::Right(Either::Left(
-                self.covered
-                    .iter_intervals()
-                    .map(move |iv| (iv, target_height)),
-            ))
+        } else if self.height_stats.uniform_positive_height() == Some(target_height) {
+            Either::Right(Either::Left(self.covered().iter_intervals().map(
+                move |interval| HeightSegment {
+                    interval,
+                    height: target_height,
+                },
+            )))
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
-                    .filter(move |&(_, h)| h == target_height),
+                    .filter(move |segment| segment.height == target_height),
             ))
         }
     }
@@ -184,7 +193,7 @@ where
         &self,
         min_height: usize,
         max_height: usize,
-    ) -> impl Iterator<Item = (I, usize)> + '_ {
+    ) -> impl Iterator<Item = HeightSegment<I>> + '_ {
         let stack_min = self.height_stats.min_positive_height_or_zero();
         let stack_max = self.height_stats.max_height();
         let query_min = min_height.max(1);
@@ -200,7 +209,9 @@ where
         } else {
             Either::Right(Either::Right(
                 self.iter_segments_from_change_points()
-                    .filter(move |(_, h)| query_min <= *h && *h <= max_height),
+                    .filter(move |segment| {
+                        query_min <= segment.height.get() && segment.height.get() <= max_height
+                    }),
             ))
         }
     }
@@ -219,7 +230,7 @@ where
     /// iter_height_segments_exactly(height_stats.max_height())
     /// ```
     #[inline]
-    pub fn iter_peak_height_segments(&self) -> impl Iterator<Item = (I, usize)> + '_ {
+    pub fn iter_peak_height_segments(&self) -> impl Iterator<Item = HeightSegment<I>> + '_ {
         self.iter_height_segments_exactly(self.height_stats.max_height())
     }
 }
@@ -229,3 +240,15 @@ mod tests_for_iter_segments_from_change_points;
 
 #[cfg(test)]
 mod tests_for_iter_height_segments;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_at_least;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_at_most;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_exactly;
+
+#[cfg(test)]
+mod tests_for_iter_height_segments_between;

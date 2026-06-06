@@ -4,7 +4,7 @@ use super::*;
 use int_interval::I32CO;
 use proptest::{prelude::*, test_runner::TestCaseResult};
 
-pub(crate) fn iv(start: i32, end_excl: i32) -> I32CO {
+pub(crate) fn iv_i32(start: i32, end_excl: i32) -> I32CO {
     I32CO::try_new(start, end_excl).unwrap()
 }
 
@@ -26,10 +26,15 @@ pub(crate) fn oracle_segments(intervals: &[(i32, i32)]) -> Vec<((i32, i32), usiz
 }
 
 pub(crate) fn collect_segments(
-    iter: impl Iterator<Item = (I32CO, usize)>,
+    iter: impl Iterator<Item = HeightSegment<I32CO>>,
 ) -> Vec<((i32, i32), usize)> {
-    iter.map(|(iv, h)| ((iv.start(), iv.end_excl()), h))
-        .collect()
+    iter.map(|segment| {
+        (
+            (segment.interval.start(), segment.interval.end_excl()),
+            segment.height.get(),
+        )
+    })
+    .collect()
 }
 
 pub(crate) fn prop_assert_canonical(points: &[ChangePoint<i32>]) -> TestCaseResult {
@@ -56,4 +61,13 @@ pub(crate) fn intervals_strategy(
     range: std::ops::Range<usize>,
 ) -> impl Strategy<Value = Vec<(i32, i32)>> {
     prop::collection::vec(interval_strategy(), range)
+}
+
+#[inline]
+pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO> {
+    intervals
+        .iter()
+        .copied()
+        .map(|(s, e)| iv_i32(s, e))
+        .collect()
 }

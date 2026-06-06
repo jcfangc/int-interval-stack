@@ -1,10 +1,27 @@
 use int_interval::I32CO;
 
-use crate::{
-    int_co_stack::test_support::iv, stack_height_stats::test_support::height_stats_from_points,
-};
+use crate::height_stats::test_support::height_stats_from_points;
 
 use super::*;
+
+#[inline]
+pub(super) fn assert_parts_eq(parts: &StackParts<i32>, expected: Vec<ChangePoint<i32>>) {
+    assert_eq!(parts.points, expected);
+    assert_eq!(parts.height_stats, height_stats_from_points(&expected));
+}
+
+#[inline]
+pub(super) fn assert_level_eq(
+    acc: &StackBuildAcc<i32>,
+    level: usize,
+    expected: Vec<ChangePoint<i32>>,
+) {
+    let parts = acc.levels[level]
+        .as_ref()
+        .expect("expected occupied stack-build level");
+
+    assert_parts_eq(parts, expected);
+}
 
 #[inline]
 pub(super) fn ep<C>(at: C, kind: EndpointKind) -> Endpoint<C> {
@@ -59,17 +76,10 @@ where
 }
 
 #[inline]
-pub(crate) fn stack_from_intervals(intervals: &[(i32, i32)]) -> IntCOStack<I32CO> {
-    intervals.iter().copied().map(|(s, e)| iv(s, e)).collect()
-}
-
-#[inline]
 pub(crate) fn stack_from_points(points: Vec<ChangePoint<i32>>) -> IntCOStack<I32CO> {
-    let covered = covered_from_change_points::<I32CO>(&points);
-
     IntCOStack {
         change_points: Arc::from(points.clone().into_boxed_slice()),
-        covered,
+        covered: OnceLock::new(),
         height_stats: height_stats_from_points(&points),
     }
 }

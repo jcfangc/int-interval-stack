@@ -1,23 +1,26 @@
-use std::sync::Arc;
+use super::*;
 
-use int_interval::traits::IntCO;
+use std::sync::{Arc, OnceLock};
+
 use int_interval_set::IntCOSet;
 
-use crate::{ChangePoint, StackHeightStats};
+use crate::{ChangePoint, HeightStats};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct IntCOStack<I>
 where
     I: IntCO,
 {
     change_points: Arc<[ChangePoint<I::CoordType>]>,
-    covered: IntCOSet<I>,
-    height_stats: StackHeightStats,
+    height_stats: HeightStats,
+    covered: OnceLock<IntCOSet<I>>,
 }
 
 mod impls_for_access;
 mod impls_for_construction;
+mod impls_for_derived_traits;
 mod impls_for_iter;
+mod impls_for_windows;
 
 #[cfg(test)]
 pub(crate) mod test_support;

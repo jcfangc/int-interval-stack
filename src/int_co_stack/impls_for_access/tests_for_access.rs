@@ -1,8 +1,5 @@
 use super::*;
-use crate::{
-    change_point::test_support::oracle_points,
-    int_co_stack::{impls_for_construction::test_support::stack_from_intervals, test_support::*},
-};
+use crate::{change_point::test_support::oracle_points, int_co_stack::test_support::*};
 use int_interval::I32CO;
 use proptest::prelude::*;
 
@@ -35,7 +32,7 @@ fn covered_returns_union_of_positive_height_regions() {
 
     assert_eq!(
         stack.covered().iter_intervals().collect::<Vec<_>>(),
-        vec![iv(1, 8), iv(10, 12)]
+        vec![iv_i32(1, 8), iv_i32(10, 12)]
     );
 }
 

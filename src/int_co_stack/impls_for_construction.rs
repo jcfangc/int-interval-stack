@@ -12,8 +12,8 @@ where
     fn default() -> Self {
         Self {
             change_points: Arc::from([]),
-            covered: IntCOSet::default(),
-            height_stats: StackHeightStats::default(),
+            covered: OnceLock::default(),
+            height_stats: HeightStats::default(),
         }
     }
 }
@@ -36,7 +36,7 @@ where
     C: Default,
 {
     points: Vec<ChangePoint<C>>,
-    height_stats: StackHeightStats,
+    height_stats: HeightStats,
 }
 
 /// Builds a canonical stack-height function from raw interval endpoint events.
@@ -83,7 +83,7 @@ where
     endpoints.sort_unstable_by_key(|endpoint| endpoint.at);
 
     let mut points = Vec::with_capacity(endpoints.len());
-    let mut height_stats = StackHeightStats::default();
+    let mut height_stats = HeightStats::default();
 
     // Height of the piecewise-constant function immediately before the next
     // unprocessed coordinate. The height before the first endpoint is zero.
@@ -185,7 +185,7 @@ where
     let rhs_points_len = rhs.points.len();
 
     let mut out_points = Vec::with_capacity(lhs_points_len + rhs_points_len);
-    let mut out_stats = StackHeightStats::default();
+    let mut out_stats = HeightStats::default();
 
     let mut lhs_height = 0usize;
     let mut rhs_height = 0usize;
@@ -394,10 +394,9 @@ where
     {
         let mut acc = StackBuildAcc::new();
 
-        let covered = iter
-            .into_iter()
-            .inspect(|interval| acc.push_interval(*interval))
-            .collect::<IntCOSet<I>>();
+        for interval in iter {
+            acc.push_interval(interval);
+        }
 
         let StackParts {
             points,
@@ -406,71 +405,10 @@ where
 
         Self {
             change_points: points.into(),
-            covered,
+            covered: OnceLock::new(),
             height_stats,
         }
     }
-}
-
-/// Projects the covered interval set from canonical stack change points.
-///
-/// A stack change-point sequence describes a piecewise-constant height
-/// function. The covered set is exactly the union of all coordinate ranges
-/// whose height is positive.
-///
-/// This function scans positive-height runs:
-///
-/// ```text
-/// height: 0 -> positive    opens a covered interval
-/// height: positive -> 0    closes a covered interval
-/// positive -> positive     keeps the current covered interval open
-/// ```
-///
-/// # Input invariants
-///
-/// `points` must be the canonical output of stack construction:
-///
-/// - coordinates are strictly increasing;
-/// - adjacent points have different `height_after` values;
-/// - the final height, when non-empty, is zero.
-///
-/// # Output
-///
-/// The returned set is canonical. Positive-height runs are emitted in
-/// ascending order and are separated by zero-height gaps.
-#[inline]
-fn covered_from_change_points<I>(points: &[ChangePoint<I::CoordType>]) -> IntCOSet<I>
-where
-    I: IntCO,
-{
-    let mut out = Vec::new();
-    let mut start = None;
-
-    for p in points {
-        match (start, p.height_after) {
-            (None, h) if h > 0 => {
-                start = Some(p.at);
-            }
-            (Some(s), 0) => {
-                // SAFETY:
-                // Canonical change points are strictly increasing, and a
-                // positive-height run can only close at a later coordinate.
-                out.push(unsafe { I::new_unchecked(s, p.at) });
-                start = None;
-            }
-            _ => {}
-        }
-    }
-
-    debug_assert!(
-        start.is_none(),
-        "canonical stack change points must end at zero height"
-    );
-
-    // SAFETY:
-    // Positive-height runs are emitted in ascending order and are separated by
-    // zero-height gaps, so the result is canonical.
-    unsafe { IntCOSet::new_unchecked(out) }
 }
 
 impl<I> FromParallelIterator<I> for IntCOStack<I>
@@ -482,10 +420,8 @@ where
     /// Each worker accumulates endpoint-derived stack parts locally. The final
     /// reduction merges those parts into one canonical height function.
     ///
-    /// The covered set is then projected from the final change points instead
-    /// of being built from a second raw interval collection. This keeps the
-    /// stack and its covered view derived from the same canonical height
-    /// function and avoids retaining all input intervals during reduction.
+    /// The covered set is not built during construction. It is a derived cache
+    /// and is initialized lazily when the covered view is first requested.
     #[inline]
     fn from_par_iter<T>(par_iter: T) -> Self
     where
@@ -503,11 +439,9 @@ where
             .map(StackBuildAcc::finish)
             .reduce(StackParts::default, |lhs, rhs| merge_parts(&lhs, &rhs));
 
-        let covered = covered_from_change_points::<I>(&points);
-
         Self {
             change_points: points.into(),
-            covered,
+            covered: OnceLock::new(),
             height_stats,
         }
     }
@@ -527,6 +461,3 @@ mod tests_for_stack_build_acc;
 
 #[cfg(test)]
 mod tests_for_from_iter_and_from_par_iter;
-
-#[cfg(test)]
-mod tests_for_covered_from_change_points;
