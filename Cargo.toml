@@ -1,6 +1,6 @@
 [package]
 name = "int-interval-stack"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "Integer half-open interval stack structures for overlap multiplicity."
 license = "MIT OR Apache-2.0"
@@ -12,7 +12,7 @@ categories = ["data-structures", "algorithms"]
 
 [dependencies]
 either = "1.16.0"
-int-interval = "0.9.4"
+int-interval = "0.9.6"
 int-interval-set = "0.3.4"
 rayon = "1.12.0"
 
