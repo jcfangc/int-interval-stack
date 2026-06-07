@@ -44,39 +44,11 @@ name = "iter_height_segments"
 harness = false
 
 [[bench]]
-name = "iter_height_segments_at_least"
-harness = false
-
-[[bench]]
-name = "iter_height_segments_at_most"
-harness = false
-
-[[bench]]
-name = "iter_height_segments_exactly"
-harness = false
-
-[[bench]]
-name = "iter_height_segments_between"
-harness = false
-
-[[bench]]
-name = "iter_peak_height_segments"
-harness = false
-
-[[bench]]
 name = "iter_windows"
 harness = false
 
 [[bench]]
-name = "par_iter_windows"
-harness = false
-
-[[bench]]
 name = "window_iter_height_runs"
-harness = false
-
-[[bench]]
-name = "window_par_iter_height_runs"
 harness = false
 
 [[bench]]

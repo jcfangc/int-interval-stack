@@ -1,6 +1,8 @@
 use int_interval::I32CO;
 use int_interval_stack::IntCOStack;
 
+use crate::support::{BenchProfile, profile};
+
 pub(crate) type Bounds = (i32, i32);
 
 #[allow(dead_code)]
@@ -78,14 +80,23 @@ pub(crate) fn mixed_unsorted(n: usize) -> Vec<Bounds> {
 }
 
 pub(crate) fn cases(n: usize) -> Vec<(&'static str, Vec<Bounds>)> {
-    vec![
-        ("sorted_disjoint", sorted_disjoint(n)),
-        ("reversed_disjoint", reversed_disjoint(n)),
-        ("adjacent_chain", adjacent_chain(n)),
-        ("nested_dense", nested_dense(n)),
-        ("shifted_overlap", shifted_overlap(n)),
-        ("mixed_unsorted", mixed_unsorted(n)),
-    ]
+    match profile() {
+        BenchProfile::Quick => vec![
+            ("sorted_disjoint", sorted_disjoint(n)),
+            ("reversed_disjoint", reversed_disjoint(n)),
+            ("adjacent_chain", adjacent_chain(n)),
+            ("nested_dense", nested_dense(n)),
+            ("shifted_overlap", shifted_overlap(n)),
+            ("mixed_unsorted", mixed_unsorted(n)),
+        ],
+
+        BenchProfile::Report => vec![
+            ("sorted_disjoint", sorted_disjoint(n)),
+            ("adjacent_chain", adjacent_chain(n)),
+            ("nested_dense", nested_dense(n)),
+            ("mixed_unsorted", mixed_unsorted(n)),
+        ],
+    }
 }
 
 #[allow(dead_code)]
