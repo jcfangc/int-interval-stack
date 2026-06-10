@@ -98,7 +98,7 @@ fn bench_iter_height_segments(bencher: Bencher, bounds: Vec<Bounds>) {
 
 macro_rules! bench_iter_height_segments {
     ($fn_name:ident, $case:literal, $dataset:ident, $n:literal) => {
-        #[divan::bench(name = concat!("iter_height_segments/", $case, "_", stringify!($n), "/iter_height_segments"))]
+        #[divan::bench(name = concat!("iter_height_segments/n_", stringify!($n), "/", $case))]
         fn $fn_name(bencher: Bencher) {
             bench_iter_height_segments(bencher, $dataset($n));
         }
