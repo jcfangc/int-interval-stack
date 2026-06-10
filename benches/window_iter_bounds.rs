@@ -96,15 +96,14 @@ macro_rules! bench_case {
             use super::*;
 
             #[divan::bench(name = concat!(
-                        "window_iter_bounds/",
-                        $case,
-                        "_",
+                        "window_iter_bounds/n_",
                         stringify!($n),
                         "_len_",
                         stringify!($len),
-                        "/int_interval_stack"
+                        "/",
+                        $case
                     ))]
-            fn int_interval_stack(bencher: Bencher) {
+            fn run(bencher: Bencher) {
                 bench_window_iter_bounds(bencher, $dataset($n), $len);
             }
         }

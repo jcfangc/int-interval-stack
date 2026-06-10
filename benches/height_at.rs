@@ -119,8 +119,8 @@ fn bench_height_at(bencher: Bencher, bounds: Vec<Bounds>) {
 }
 
 macro_rules! bench_height_at {
-    ($fn_name:ident, $name:literal, $dataset:ident, $n:expr) => {
-        #[divan::bench(name = $name)]
+    ($fn_name:ident, $case:literal, $dataset:ident, $n:literal) => {
+        #[divan::bench(name = concat!("height_at/n_", stringify!($n), "/", $case))]
         fn $fn_name(bencher: Bencher) {
             bench_height_at(bencher, $dataset($n));
         }
@@ -129,126 +129,121 @@ macro_rules! bench_height_at {
 
 bench_height_at!(
     height_at_sorted_disjoint_64,
-    "height_at/sorted_disjoint_64/int_interval_stack",
+    "sorted_disjoint",
     sorted_disjoint,
     64
 );
 
 bench_height_at!(
     height_at_reversed_disjoint_64,
-    "height_at/reversed_disjoint_64/int_interval_stack",
+    "reversed_disjoint",
     reversed_disjoint,
     64
 );
 
 bench_height_at!(
     height_at_adjacent_chain_64,
-    "height_at/adjacent_chain_64/int_interval_stack",
+    "adjacent_chain",
     adjacent_chain,
     64
 );
 
-bench_height_at!(
-    height_at_nested_dense_64,
-    "height_at/nested_dense_64/int_interval_stack",
-    nested_dense,
-    64
-);
+bench_height_at!(height_at_nested_dense_64, "nested_dense", nested_dense, 64);
 
 bench_height_at!(
     height_at_shifted_overlap_64,
-    "height_at/shifted_overlap_64/int_interval_stack",
+    "shifted_overlap",
     shifted_overlap,
     64
 );
 
 bench_height_at!(
     height_at_mixed_unsorted_64,
-    "height_at/mixed_unsorted_64/int_interval_stack",
+    "mixed_unsorted",
     mixed_unsorted,
     64
 );
 
 bench_height_at!(
     height_at_sorted_disjoint_256,
-    "height_at/sorted_disjoint_256/int_interval_stack",
+    "sorted_disjoint",
     sorted_disjoint,
     256
 );
 
 bench_height_at!(
     height_at_reversed_disjoint_256,
-    "height_at/reversed_disjoint_256/int_interval_stack",
+    "reversed_disjoint",
     reversed_disjoint,
     256
 );
 
 bench_height_at!(
     height_at_adjacent_chain_256,
-    "height_at/adjacent_chain_256/int_interval_stack",
+    "adjacent_chain",
     adjacent_chain,
     256
 );
 
 bench_height_at!(
     height_at_nested_dense_256,
-    "height_at/nested_dense_256/int_interval_stack",
+    "nested_dense",
     nested_dense,
     256
 );
 
 bench_height_at!(
     height_at_shifted_overlap_256,
-    "height_at/shifted_overlap_256/int_interval_stack",
+    "shifted_overlap",
     shifted_overlap,
     256
 );
 
 bench_height_at!(
     height_at_mixed_unsorted_256,
-    "height_at/mixed_unsorted_256/int_interval_stack",
+    "mixed_unsorted",
     mixed_unsorted,
     256
 );
 
 bench_height_at!(
     height_at_sorted_disjoint_1024,
-    "height_at/sorted_disjoint_1024/int_interval_stack",
+    "sorted_disjoint",
     sorted_disjoint,
     1024
 );
 
 bench_height_at!(
     height_at_reversed_disjoint_1024,
-    "height_at/reversed_disjoint_1024/int_interval_stack",
+    "reversed_disjoint",
     reversed_disjoint,
     1024
 );
 
 bench_height_at!(
     height_at_adjacent_chain_1024,
-    "height_at/adjacent_chain_1024/int_interval_stack",
+    "adjacent_chain",
     adjacent_chain,
     1024
 );
 
 bench_height_at!(
     height_at_nested_dense_1024,
-    "height_at/nested_dense_1024/int_interval_stack",
+    "nested_dense",
     nested_dense,
     1024
 );
 
 bench_height_at!(
     height_at_shifted_overlap_1024,
-    "height_at/shifted_overlap_1024/int_interval_stack",
+    "shifted_overlap",
     shifted_overlap,
     1024
 );
 
 bench_height_at!(
     height_at_mixed_unsorted_1024,
-    "height_at/mixed_unsorted_1024/int_interval_stack",
+    "mixed_unsorted",
     mixed_unsorted,
     1024
 );

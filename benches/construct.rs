@@ -88,7 +88,7 @@ fn bench_stack_from_bounds(bencher: Bencher, bounds: Vec<Bounds>) {
 
 macro_rules! bench_construct {
     ($fn_name:ident, $case:literal, $dataset:ident, $n:literal) => {
-        #[divan::bench(name = concat!("construct/", $case, "_", stringify!($n), "/stack_from_bounds"))]
+        #[divan::bench(name = concat!("construct/n_", stringify!($n), "/", $case))]
         fn $fn_name(bencher: Bencher) {
             bench_stack_from_bounds(bencher, $dataset($n));
         }
