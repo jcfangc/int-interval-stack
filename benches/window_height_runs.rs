@@ -164,40 +164,40 @@ macro_rules! bench_case {
             use super::*;
 
             #[divan::bench(name = concat!(
-                        "window_height_runs/",
-                        $case,
-                        "_",
-                        stringify!($n),
-                        "_len_",
-                        stringify!($len),
-                        "/int_interval_stack"
-                    ))]
+                                        "window_height_runs/",
+                                        $case,
+                                        "_",
+                                        stringify!($n),
+                                        "_len_",
+                                        stringify!($len),
+                                        "/int_interval_stack"
+                                    ))]
             fn int_interval_stack(bencher: Bencher) {
                 bench_stack_window_runs(bencher, $dataset($n), $len);
             }
 
             #[divan::bench(name = concat!(
-                        "window_height_runs/",
-                        $case,
-                        "_",
-                        stringify!($n),
-                        "_len_",
-                        stringify!($len),
-                        "/std_dense_query_only"
-                    ))]
+                                        "window_height_runs/",
+                                        $case,
+                                        "_",
+                                        stringify!($n),
+                                        "_len_",
+                                        stringify!($len),
+                                        "/std_dense_query_only"
+                                    ))]
             fn std_dense_query_only(bencher: Bencher) {
                 bench_dense_query_only(bencher, $dataset($n), $len);
             }
 
             #[divan::bench(name = concat!(
-                        "window_height_runs/",
-                        $case,
-                        "_",
-                        stringify!($n),
-                        "_len_",
-                        stringify!($len),
-                        "/std_dense_end_to_end"
-                    ))]
+                                        "window_height_runs/",
+                                        $case,
+                                        "_",
+                                        stringify!($n),
+                                        "_len_",
+                                        stringify!($len),
+                                        "/std_dense_end_to_end"
+                                    ))]
             fn std_dense_end_to_end(bencher: Bencher) {
                 bench_dense_end_to_end(bencher, $dataset($n), $len);
             }

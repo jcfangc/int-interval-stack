@@ -1,7 +1,11 @@
+use std::num::NonZeroUsize;
+
+use either::Either;
 use int_interval::traits::{COStartLenConstruct, IntPrimitive};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::*;
+use crate::stack_window::{WindowCursor, WindowIter};
 
 #[inline]
 fn window_count<I>(from: I::CoordType, to: I::CoordType, len: I::MeasureType) -> Option<usize>
@@ -35,7 +39,7 @@ where
 }
 
 #[inline]
-fn window_at<'a, I>(
+pub(crate) fn window_at<'a, I>(
     stack: &'a IntCOStack<I>,
     from: I::CoordType,
     len: I::MeasureType,
@@ -80,9 +84,15 @@ where
     ) -> impl DoubleEndedIterator<Item = StackWindow<'_, I>> + ExactSizeIterator {
         let count = window_count::<I>(from, to, len).unwrap_or(0);
 
-        (0..count).map(move |index| {
-            window_at(self, from, len, index)
-                .expect("validated window index must produce a representable window")
+        let Some(count) = NonZeroUsize::new(count) else {
+            return Either::Left(std::iter::empty());
+        };
+
+        let cursor = WindowCursor::new(self, from, len, count);
+        Either::Right(WindowIter {
+            cursor,
+            total_count: count.get(),
+            consumed_back: 0,
         })
     }
 
@@ -108,6 +118,38 @@ where
             window_at(self, from, len, index)
                 .expect("validated window index must produce a representable window")
         })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// DoubleEndedIterator – lives here because it calls the module-local
+// `window_at` helper.
+// ---------------------------------------------------------------------------
+
+impl<'a, I> DoubleEndedIterator for WindowIter<'a, I>
+where
+    I: IntCO + COStartLenConstruct + Copy,
+    I::MeasureType: TryInto<usize>,
+{
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.cursor.remaining == 0 {
+            return None;
+        }
+
+        let back_index = self.total_count - self.consumed_back - 1;
+        self.consumed_back += 1;
+        self.cursor.remaining -= 1;
+
+        Some(
+            window_at(
+                self.cursor.stack,
+                self.cursor.from,
+                self.cursor.interval.len(),
+                back_index,
+            )
+            .expect("back index is always valid when remaining > 0"),
+        )
     }
 }
 
