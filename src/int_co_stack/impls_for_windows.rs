@@ -5,7 +5,7 @@ use int_interval::traits::{COStartLenConstruct, IntPrimitive};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::*;
-use crate::stack_window::{WindowCursor, WindowIter};
+use crate::stack_window::WindowIter;
 
 #[inline]
 fn window_count<I>(from: I::CoordType, to: I::CoordType, len: I::MeasureType) -> Option<usize>
@@ -88,12 +88,7 @@ where
             return Either::Left(std::iter::empty());
         };
 
-        let cursor = WindowCursor::new(self, from, len, count);
-        Either::Right(WindowIter {
-            cursor,
-            total_count: count.get(),
-            consumed_back: 0,
-        })
+        Either::Right(WindowIter::new(self, from, len, count))
     }
 
     /// Iterates in parallel over all fixed-length windows fully contained in
@@ -133,22 +128,17 @@ where
 {
     #[inline]
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.cursor.remaining == 0 {
+        if self.remaining == 0 {
             return None;
         }
 
         let back_index = self.total_count - self.consumed_back - 1;
         self.consumed_back += 1;
-        self.cursor.remaining -= 1;
+        self.remaining -= 1;
 
         Some(
-            window_at(
-                self.cursor.stack,
-                self.cursor.from,
-                self.cursor.interval.len(),
-                back_index,
-            )
-            .expect("back index is always valid when remaining > 0"),
+            window_at(self.stack, self.from, self.interval.len(), back_index)
+                .expect("back index is always valid when remaining > 0"),
         )
     }
 }

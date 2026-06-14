@@ -163,13 +163,15 @@ where
 }
 
 // ---------------------------------------------------------------------------
-// WindowCursor – sliding-window state
+// WindowIter – sliding-window iterator
 // ---------------------------------------------------------------------------
 
-/// Maintains the current window-local change-point range so that sliding a
-/// window advances indices incrementally instead of repeating binary searches.
+/// Iterator over sliding windows that uses incremental index advancement for
+/// O(1) amortized forward steps.
+///
+/// Backward iteration falls back to a binary search per step.
 #[derive(Debug, Clone)]
-pub(crate) struct WindowCursor<'a, I>
+pub(crate) struct WindowIter<'a, I>
 where
     I: IntCO,
 {
@@ -184,15 +186,19 @@ where
     pub(crate) point_end: usize,
     /// Stack height at `interval.start()`.
     pub(crate) height_at_start: usize,
-    /// Number of windows remaining in the iteration, including the current one.
+    /// Number of windows remaining, including the current one.
     pub(crate) remaining: usize,
+    /// Total window count (constant).
+    pub(crate) total_count: usize,
+    /// Number of windows already taken from the back via `next_back`.
+    pub(crate) consumed_back: usize,
 }
 
-impl<'a, I> WindowCursor<'a, I>
+impl<'a, I> WindowIter<'a, I>
 where
     I: IntCO + COStartLenConstruct + Copy,
 {
-    /// Positions the cursor at the first window `[from, from + len)`.
+    /// Positions the iterator at the first window `[from, from + len)`.
     ///
     /// Uses a binary search once to locate the initial change-point range.
     pub(crate) fn new(
@@ -214,25 +220,12 @@ where
             point_end: sw.point_end,
             height_at_start: sw.height_at_start,
             remaining: count.get(),
+            total_count: count.get(),
+            consumed_back: 0,
         }
     }
 
-    /// Returns a `StackWindow` for the current cursor position.
-    ///
-    /// This does **not** perform a binary search — it reuses the indices that
-    /// the cursor already maintains.
-    #[inline]
-    pub(crate) fn window(&self) -> StackWindow<'a, I> {
-        StackWindow {
-            stack: self.stack,
-            interval: self.interval,
-            point_start: self.point_start,
-            point_end: self.point_end,
-            height_at_start: self.height_at_start,
-        }
-    }
-
-    /// Slides the cursor forward by one coordinate unit.
+    /// Slides the window forward by one coordinate unit.
     ///
     /// Advances `point_start` and `point_end` past any change points that fall
     /// on or before the new window boundaries.
@@ -241,7 +234,7 @@ where
     ///
     /// Panics on overflow if `remaining` is zero (debug-only via `debug_assert`).
     #[inline]
-    pub(crate) fn advance(&mut self) {
+    fn advance(&mut self) {
         debug_assert!(self.remaining > 0);
 
         let new_start = self
@@ -278,26 +271,6 @@ where
     }
 }
 
-// ---------------------------------------------------------------------------
-// WindowIter – iterator adapter
-// ---------------------------------------------------------------------------
-
-/// Iterator over sliding windows backed by a [`WindowCursor`].
-///
-/// Forward iteration uses incremental index advancement. Backward iteration
-/// falls back to a binary search per step.
-#[derive(Debug, Clone)]
-pub(crate) struct WindowIter<'a, I>
-where
-    I: IntCO,
-{
-    pub(crate) cursor: WindowCursor<'a, I>,
-    /// Total window count (constant).
-    pub(crate) total_count: usize,
-    /// Number of windows already taken from the back via `next_back`.
-    pub(crate) consumed_back: usize,
-}
-
 impl<'a, I> Iterator for WindowIter<'a, I>
 where
     I: IntCO + COStartLenConstruct + Copy,
@@ -306,17 +279,23 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.cursor.remaining == 0 {
+        if self.remaining == 0 {
             return None;
         }
-        let window = self.cursor.window();
-        self.cursor.advance();
+        let window = StackWindow {
+            stack: self.stack,
+            interval: self.interval,
+            point_start: self.point_start,
+            point_end: self.point_end,
+            height_at_start: self.height_at_start,
+        };
+        self.advance();
         Some(window)
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.cursor.remaining, Some(self.cursor.remaining))
+        (self.remaining, Some(self.remaining))
     }
 }
 
@@ -326,7 +305,7 @@ where
 {
     #[inline]
     fn len(&self) -> usize {
-        self.cursor.remaining
+        self.remaining
     }
 }
 
