@@ -1,4 +1,6 @@
-use int_interval::traits::IntCO;
+use std::num::NonZeroUsize;
+
+use int_interval::traits::{COStartLenConstruct, IntCO, IntPrimitive};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{HeightRun, IntCOStack};
@@ -8,14 +10,14 @@ pub struct StackWindow<'a, I>
 where
     I: IntCO,
 {
-    stack: &'a IntCOStack<I>,
-    interval: I,
+    pub(crate) stack: &'a IntCOStack<I>,
+    pub(crate) interval: I,
     /// First change point strictly inside the window after `interval.start()`.
-    point_start: usize,
+    pub(crate) point_start: usize,
     /// First change point at or after `interval.end_excl()`.
-    point_end: usize,
+    pub(crate) point_end: usize,
     /// Stack height at `interval.start()`.
-    height_at_start: usize,
+    pub(crate) height_at_start: usize,
 }
 
 impl<'a, I> StackWindow<'a, I>
@@ -159,6 +161,156 @@ where
             .map(move |run_index| self.height_run_at(run_index))
     }
 }
+
+// ---------------------------------------------------------------------------
+// WindowIter – sliding-window iterator
+// ---------------------------------------------------------------------------
+
+/// Iterator over sliding windows that uses incremental index advancement for
+/// O(1) amortized forward steps.
+///
+/// Backward iteration falls back to a binary search per step.
+#[derive(Debug, Clone)]
+pub(crate) struct WindowIter<'a, I>
+where
+    I: IntCO,
+{
+    pub(crate) stack: &'a IntCOStack<I>,
+    /// Iteration domain start, stored for `DoubleEndedIterator::next_back`.
+    pub(crate) from: I::CoordType,
+    /// Current window `[start, start + len)`.
+    pub(crate) interval: I,
+    /// First change point strictly inside the window after `interval.start()`.
+    pub(crate) point_start: usize,
+    /// First change point at or after `interval.end_excl()`.
+    pub(crate) point_end: usize,
+    /// Stack height at `interval.start()`.
+    pub(crate) height_at_start: usize,
+    /// Number of windows remaining, including the current one.
+    pub(crate) remaining: usize,
+    /// Total window count (constant).
+    pub(crate) total_count: usize,
+    /// Number of windows already taken from the back via `next_back`.
+    pub(crate) consumed_back: usize,
+}
+
+impl<'a, I> WindowIter<'a, I>
+where
+    I: IntCO + COStartLenConstruct + Copy,
+{
+    /// Positions the iterator at the first window `[from, from + len)`.
+    ///
+    /// Uses a binary search once to locate the initial change-point range.
+    pub(crate) fn new(
+        stack: &'a IntCOStack<I>,
+        from: I::CoordType,
+        len: I::MeasureType,
+        count: NonZeroUsize,
+    ) -> Self {
+        let interval = I::checked_from_start_len(from, len)
+            .expect("validated window count guarantees a representable first window");
+
+        let sw = StackWindow::new(stack, interval);
+
+        Self {
+            stack,
+            from,
+            interval,
+            point_start: sw.point_start,
+            point_end: sw.point_end,
+            height_at_start: sw.height_at_start,
+            remaining: count.get(),
+            total_count: count.get(),
+            consumed_back: 0,
+        }
+    }
+
+    /// Slides the window forward by one coordinate unit.
+    ///
+    /// Advances `point_start` and `point_end` past any change points that fall
+    /// on or before the new window boundaries.
+    ///
+    /// # Panics
+    ///
+    /// Panics on overflow if `remaining` is zero (debug-only via `debug_assert`).
+    #[inline]
+    fn advance(&mut self) {
+        debug_assert!(self.remaining > 0);
+
+        let new_start = self
+            .interval
+            .start()
+            .checked_next()
+            .expect("remaining > 0 guarantees the next start coordinate fits");
+        let new_end = self
+            .interval
+            .end_excl()
+            .checked_next()
+            .expect("remaining > 0 guarantees the next end coordinate fits");
+
+        // SAFETY: `remaining > 0` implies the window still fits within the
+        // iteration domain `[from, to)`, so `new_start < new_end` and the
+        // interval is well-formed.
+        let new_interval = unsafe { I::new_unchecked(new_start, new_end) };
+
+        let points = self.stack.change_points();
+
+        // Advance point_start past change points at or before the new start.
+        while self.point_start < points.len() && points[self.point_start].at <= new_start {
+            self.height_at_start = points[self.point_start].height_after;
+            self.point_start += 1;
+        }
+
+        // Advance point_end past change points strictly before the new end.
+        while self.point_end < points.len() && points[self.point_end].at < new_end {
+            self.point_end += 1;
+        }
+
+        self.interval = new_interval;
+        self.remaining -= 1;
+    }
+}
+
+impl<'a, I> Iterator for WindowIter<'a, I>
+where
+    I: IntCO + COStartLenConstruct + Copy,
+{
+    type Item = StackWindow<'a, I>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        let window = StackWindow {
+            stack: self.stack,
+            interval: self.interval,
+            point_start: self.point_start,
+            point_end: self.point_end,
+            height_at_start: self.height_at_start,
+        };
+        self.advance();
+        Some(window)
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a, I> ExactSizeIterator for WindowIter<'a, I>
+where
+    I: IntCO + COStartLenConstruct + Copy,
+{
+    #[inline]
+    fn len(&self) -> usize {
+        self.remaining
+    }
+}
+
+#[cfg(test)]
+mod tests_for_window_iter;
 
 #[cfg(test)]
 mod tests_for_new;
