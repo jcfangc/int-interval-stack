@@ -196,31 +196,33 @@ where
 
     while lhs_cursor < lhs_points_len || rhs_cursor < rhs_points_len {
         let at = match (lhs.points.get(lhs_cursor), rhs.points.get(rhs_cursor)) {
-            // Only `lhs` changes at this coordinate; keep the current
-            // height contributed by `rhs`.
-            (Some(l), Some(r)) if l.at < r.at => {
-                lhs_height = l.height_after;
-                lhs_cursor += 1;
-                l.at
-            }
+            (Some(l), Some(r)) => match l.at.cmp(&r.at) {
+                // Only `lhs` changes at this coordinate; keep the current
+                // height contributed by `rhs`.
+                std::cmp::Ordering::Less => {
+                    lhs_height = l.height_after;
+                    lhs_cursor += 1;
+                    l.at
+                }
 
-            // Only `rhs` changes at this coordinate; keep the current
-            // height contributed by `lhs`.
-            (Some(l), Some(r)) if r.at < l.at => {
-                rhs_height = r.height_after;
-                rhs_cursor += 1;
-                r.at
-            }
+                // Only `rhs` changes at this coordinate; keep the current
+                // height contributed by `lhs`.
+                std::cmp::Ordering::Greater => {
+                    rhs_height = r.height_after;
+                    rhs_cursor += 1;
+                    r.at
+                }
 
-            // Both functions change at the same coordinate. Apply both
-            // changes before computing the merged height after `at`.
-            (Some(l), Some(r)) => {
-                lhs_height = l.height_after;
-                rhs_height = r.height_after;
-                lhs_cursor += 1;
-                rhs_cursor += 1;
-                l.at
-            }
+                // Both functions change at the same coordinate. Apply both
+                // changes before computing the merged height after `at`.
+                std::cmp::Ordering::Equal => {
+                    lhs_height = l.height_after;
+                    rhs_height = r.height_after;
+                    lhs_cursor += 1;
+                    rhs_cursor += 1;
+                    l.at
+                }
+            },
 
             // `rhs` has been exhausted; append the remaining changes from
             // `lhs` while preserving the final height contributed by `rhs`.

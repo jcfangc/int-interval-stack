@@ -310,7 +310,7 @@ where
 }
 
 #[cfg(test)]
-mod tests_for_cursor;
+mod tests_for_window_iter;
 
 #[cfg(test)]
 mod tests_for_new;
