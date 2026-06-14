@@ -4,6 +4,7 @@
 [![Documentation](https://docs.rs/int-interval-stack/badge.svg)](https://docs.rs/int-interval-stack)
 [![License](https://img.shields.io/crates/l/int-interval-stack.svg)](https://crates.io/crates/int-interval-stack)
 [![CodSpeed](https://github.com/jcfangc/int-interval-stack/actions/workflows/codspeed.yml/badge.svg?branch=main)](https://github.com/jcfangc/int-interval-stack/actions/workflows/codspeed.yml)
+[![Coverage](https://codecov.io/gh/jcfangc/int-interval-stack/branch/main/graph/badge.svg)](https://codecov.io/gh/jcfangc/int-interval-stack)
 
 
 Canonical stack-height functions for integer half-open intervals.
